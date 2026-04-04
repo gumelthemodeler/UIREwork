@@ -18,7 +18,8 @@ local DECALS = {
 	Raid = "rbxassetid://119392967268687",
 	PvP = "rbxassetid://100826303284945", 
 	Nightmare = "rbxassetid://90132878979603",
-	WorldBoss = "rbxassetid://129655150803684" 
+	WorldBoss = "rbxassetid://129655150803684",
+	Endless = "rbxassetid://108619507999123" 
 }
 
 -- Party State
@@ -60,14 +61,13 @@ function ExpeditionsTab.Initialize(parentFrame)
 	MasterLayout.Padding = UDim.new(0, 20)
 
 	-- ==========================================
-	-- LEFT PANEL: MISSIONS GRID (Adjusted for perfect centering)
+	-- LEFT PANEL: MISSIONS GRID 
 	-- ==========================================
 	local MissionsPanel = Instance.new("Frame", parentFrame)
 	MissionsPanel.Size = UDim2.new(0.68, 0, 1, 0)
 	MissionsPanel.BackgroundTransparency = 1
 	MissionsPanel.LayoutOrder = 1
 
-	-- Perfect padding to balance the split layout
 	local mPad = Instance.new("UIPadding", MissionsPanel)
 	mPad.PaddingLeft = UDim.new(0.02, 0)
 
@@ -96,6 +96,51 @@ function ExpeditionsTab.Initialize(parentFrame)
 	BackBtn.MouseButton1Click:Connect(function()
 		ShowPage("Main", "COMBAT DEPLOYMENT")
 	end)
+
+	-- ==========================================
+	-- DEPLOYMENT TRANSITION SEQUENCE
+	-- ==========================================
+	local DeployOverlay = Instance.new("Frame", parentFrame.Parent) 
+	DeployOverlay.Name = "DeploymentTransition"
+	DeployOverlay.Size = UDim2.new(1, 0, 1, 0)
+	DeployOverlay.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+	DeployOverlay.BackgroundTransparency = 1
+	DeployOverlay.ZIndex = 90
+	DeployOverlay.Visible = false
+
+	local dStatus = UIHelpers.CreateLabel(DeployOverlay, "ESTABLISHING CONNECTION...", UDim2.new(1, 0, 0, 40), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 24)
+	dStatus.Position = UDim2.new(0, 0, 0.5, -20)
+	dStatus.TextTransparency = 1
+	dStatus.ZIndex = 91
+
+	local function InitiateDeployment(remoteName, action, payload)
+		DeployOverlay.Visible = true
+
+		TweenService:Create(DeployOverlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.1}):Play()
+		TweenService:Create(dStatus, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+
+		dStatus.Text = "PREPARING STRIKE TEAM..."
+		task.wait(0.6)
+		dStatus.Text = "DEPLOYING TO COMBAT ZONE..."
+		dStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+		task.wait(0.8)
+
+		if payload then
+			Network:WaitForChild(remoteName):FireServer(action, payload)
+		else
+			Network:WaitForChild(remoteName):FireServer(action)
+		end
+
+		local t1 = TweenService:Create(DeployOverlay, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+		local t2 = TweenService:Create(dStatus, TweenInfo.new(0.5), {TextTransparency = 1})
+		t1:Play()
+		t2:Play()
+
+		t1.Completed:Wait()
+		DeployOverlay.Visible = false
+		dStatus.TextColor3 = UIHelpers.Colors.Gold
+	end
 
 	-- ==========================================
 	-- DYNAMIC CARD GENERATOR
@@ -157,6 +202,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 		end)
 
 		cardBtn.MouseButton1Click:Connect(onClick)
+		return lblDesc
 	end
 
 	-- ==========================================
@@ -171,7 +217,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 	Pages["Main"] = GridContainer
 
 	local gridLayout = Instance.new("UIGridLayout", GridContainer)
-	gridLayout.CellSize = UDim2.new(0.48, 0, 0, 160) 
+	gridLayout.CellSize = UDim2.new(0.48, 0, 0, 150) 
 	gridLayout.CellPadding = UDim2.new(0.03, 0, 0, 15)
 	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -180,15 +226,34 @@ function ExpeditionsTab.Initialize(parentFrame)
 		GridContainer.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 40)
 	end)
 
-	CreateModeCard(GridContainer, "STORY CAMPAIGN", "Progress through the main storyline and conquer the threat.", DECALS.Campaign, 1, function() print("Deploy Campaign") end)
-	CreateModeCard(GridContainer, "MULTIPLAYER RAIDS", "Deploy your party to take down Colossal threats.", DECALS.Raid, 2, function() ShowPage("Raids", "MULTIPLAYER RAIDS") end)
-	CreateModeCard(GridContainer, "WORLD BOSSES", "A catastrophic threat has appeared. Intercept immediately.", DECALS.WorldBoss, 3, function() ShowPage("WorldBoss", "WORLD BOSSES") end)
-	CreateModeCard(GridContainer, "PVP ARENA", "Test your ODM combat skills against other players.", DECALS.PvP, 4, function() ShowPage("PvP", "PVP ARENA") end)
+	-- [[ THE FIX: Updated Event payloads to exactly match ServerScript requirements ]]
+	local cPart = player:GetAttribute("CurrentPart") or 1
+	local cMiss = player:GetAttribute("CurrentMission") or 1
+	local campaignDescLbl = CreateModeCard(GridContainer, "STORY CAMPAIGN", string.format("Part %d - Mission %d\nProgress through the main storyline.", cPart, cMiss), DECALS.Campaign, 1, function() 
+		InitiateDeployment("CombatAction", "EngageStory") -- Was "EngageCampaign"
+	end)
+
+	player.AttributeChanged:Connect(function(attr)
+		if attr == "CurrentPart" or attr == "CurrentMission" then
+			campaignDescLbl.Text = string.format("Part %d - Mission %d\nProgress through the main storyline.", player:GetAttribute("CurrentPart") or 1, player:GetAttribute("CurrentMission") or 1)
+		end
+	end)
+
+	CreateModeCard(GridContainer, "ENDLESS FRONTIER", "Fight infinite waves to continually harvest Dews, XP, and materials.", DECALS.Endless, 2, function() 
+		InitiateDeployment("CombatAction", "EngageEndless")
+	end)
+
+	CreateModeCard(GridContainer, "MULTIPLAYER RAIDS", "Deploy your party to take down Colossal threats.", DECALS.Raid, 3, function() ShowPage("Raids", "MULTIPLAYER RAIDS") end)
+	CreateModeCard(GridContainer, "WORLD BOSSES", "A catastrophic threat has appeared. Intercept immediately.", DECALS.WorldBoss, 4, function() ShowPage("WorldBoss", "WORLD BOSSES") end)
 	CreateModeCard(GridContainer, "NIGHTMARE HUNTS", "Face corrupted Titans to obtain legendary Cursed Weapons.", DECALS.Nightmare, 5, function() ShowPage("Nightmare", "NIGHTMARE HUNTS") end)
-	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send scouts into the wilderness to gather resources while you rest.", DECALS.AFK, 6, function() print("Deploy AFK") end)
+	CreateModeCard(GridContainer, "PVP ARENA", "Test your ODM combat skills against other players.", DECALS.PvP, 6, function() ShowPage("PvP", "PVP ARENA") end)
+	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send scouts into the wilderness to gather resources while you rest.", DECALS.AFK, 7, function() 
+		print("Deploy AFK Setup...") 
+	end)
+
 
 	-- ==========================================
-	-- PAGE: NIGHTMARE HUNTS (TALL GRID)
+	-- PAGE: NIGHTMARE HUNTS
 	-- ==========================================
 	local NightmarePage = Instance.new("ScrollingFrame", MissionsPanel)
 	NightmarePage.Size = UDim2.new(1, 0, 1, -60)
@@ -210,16 +275,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 	end)
 
 	local nIndex = 1
-	for id, boss in pairs(EnemyData.NightmareHunts) do
-		local icon = EnemyData.BossIcons[id] or DECALS.Nightmare
+	for id, boss in pairs(EnemyData.NightmareHunts or {}) do
+		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.Nightmare
 		CreateModeCard(NightmarePage, string.upper(boss.Name), boss.Desc or "Eliminate the corrupted Titan.", icon, nIndex, function()
-			Network:WaitForChild("CombatAction"):FireServer("EngageNightmare", {BossId = id})
+			InitiateDeployment("CombatAction", "EngageNightmare", {BossId = id})
 		end)
 		nIndex = nIndex + 1
 	end
 
 	-- ==========================================
-	-- PAGE: WORLD BOSSES (TALL GRID)
+	-- PAGE: WORLD BOSSES
 	-- ==========================================
 	local WorldBossPage = Instance.new("ScrollingFrame", MissionsPanel)
 	WorldBossPage.Size = UDim2.new(1, 0, 1, -60)
@@ -241,16 +306,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 	end)
 
 	local wIndex = 1
-	for id, boss in pairs(EnemyData.WorldBosses) do
-		local icon = EnemyData.BossIcons[id] or DECALS.WorldBoss
+	for id, boss in pairs(EnemyData.WorldBosses or {}) do
+		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.WorldBoss
 		CreateModeCard(WorldBossPage, string.upper(boss.Name), boss.Desc or "A massive threat approaches.", icon, wIndex, function()
-			Network:WaitForChild("CombatAction"):FireServer("EngageWorldBoss", {BossId = id})
+			InitiateDeployment("CombatAction", "EngageWorldBoss", {BossId = id})
 		end)
 		wIndex = wIndex + 1
 	end
 
 	-- ==========================================
-	-- PAGE: MULTIPLAYER RAIDS (TALL GRID)
+	-- PAGE: MULTIPLAYER RAIDS
 	-- ==========================================
 	local RaidPage = Instance.new("ScrollingFrame", MissionsPanel)
 	RaidPage.Size = UDim2.new(1, 0, 1, -60)
@@ -272,7 +337,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 	end)
 
 	local raidList = {}
-	for id, boss in pairs(EnemyData.RaidBosses) do
+	for id, boss in pairs(EnemyData.RaidBosses or {}) do
 		table.insert(raidList, {Id = id, Data = boss})
 	end
 	table.sort(raidList, function(a, b) return a.Id < b.Id end)
@@ -280,15 +345,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 	for i, rInfo in ipairs(raidList) do
 		local id = rInfo.Id
 		local boss = rInfo.Data
-		local icon = EnemyData.BossIcons[id] or DECALS.Raid
+		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.Raid
 
 		CreateModeCard(RaidPage, string.upper(boss.Name), "Requires a Party. Coordinate strikes and manage aggro.", icon, i, function()
-			Network:WaitForChild("RaidAction"):FireServer("DeployParty", {RaidId = id})
+			-- Note: Raids use RaidAction instead of CombatAction in your backend structure
+			InitiateDeployment("RaidAction", "DeployParty", {RaidId = id})
 		end)
 	end
 
 	-- ==========================================
-	-- PAGE: PVP ARENA (UNCHANGED)
+	-- PAGE: PVP ARENA
 	-- ==========================================
 	local PvPPage = Instance.new("Frame", MissionsPanel)
 	PvPPage.Size = UDim2.new(1, 0, 1, -60)
@@ -345,8 +411,9 @@ function ExpeditionsTab.Initialize(parentFrame)
 
 	local phLabel = UIHelpers.CreateLabel(SpectateScroll, "Fetching live matches...", UDim2.new(1, 0, 0, 50), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
 
+
 	-- ==========================================
-	-- RIGHT PANEL: PARTY SYSTEM (28% Width)
+	-- RIGHT PANEL: PARTY SYSTEM 
 	-- ==========================================
 	local PartyPanel = Instance.new("Frame", parentFrame)
 	PartyPanel.Size = UDim2.new(0.28, 0, 1, -20)
@@ -374,7 +441,6 @@ function ExpeditionsTab.Initialize(parentFrame)
 			local Header = UIHelpers.CreateLabel(PartyContent, "STRIKE TEAM (" .. #CurrentParty .. "/3)", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 18)
 			Header.LayoutOrder = 1; Header.TextXAlignment = Enum.TextXAlignment.Left
 
-			-- Member Roster
 			local RosterFrame = Instance.new("Frame", PartyContent)
 			RosterFrame.Size = UDim2.new(1, 0, 0, #CurrentParty * 50)
 			RosterFrame.BackgroundTransparency = 1
@@ -396,7 +462,6 @@ function ExpeditionsTab.Initialize(parentFrame)
 				end
 			end
 
-			-- Leader Controls
 			if IsPartyLeader then
 				local InviteContainer = Instance.new("Frame", PartyContent)
 				InviteContainer.Size = UDim2.new(1, 0, 0, 80)
@@ -433,7 +498,6 @@ function ExpeditionsTab.Initialize(parentFrame)
 			LeaveBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PartyAction"):FireServer("Leave") end)
 
 		else
-			-- Solo View
 			local Header = UIHelpers.CreateLabel(PartyContent, "SOLO DEPLOYMENT", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextMuted, 18)
 			Header.LayoutOrder = 1; Header.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -441,7 +505,6 @@ function ExpeditionsTab.Initialize(parentFrame)
 			CreateBtn.LayoutOrder = 2
 			CreateBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PartyAction"):FireServer("Create") end)
 
-			-- Incoming Invites
 			local inviteCount = 0
 			for k, v in pairs(PendingInvites) do inviteCount = inviteCount + 1 end
 
