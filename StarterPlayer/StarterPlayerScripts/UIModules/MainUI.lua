@@ -29,12 +29,28 @@ local function BuildEnvironment(onComplete)
 	local Texture = Instance.new("ImageLabel", BGFrame)
 	Texture.Size = UDim2.new(1, 0, 1, 0)
 	Texture.BackgroundTransparency = 1
-	Texture.Image = "rbxassetid://13467475151" 
+	Texture.Image = "rbxassetid://125800917140688" 
 	Texture.ImageTransparency = 0.50
 	Texture.ScaleType = Enum.ScaleType.Crop 
 	Texture.ZIndex = -9
 
 	if onComplete then onComplete() end
+end
+
+-- [[ THE FIX: Number Abbreviation Formatter ]]
+local function FormatAbbreviation(value)
+	local num = tonumber(value)
+	if not num then return "0" end
+
+	if num >= 1e9 then
+		return string.format("%.1fB", num / 1e9):gsub("%.0B", "B")
+	elseif num >= 1e6 then
+		return string.format("%.1fM", num / 1e6):gsub("%.0M", "M")
+	elseif num >= 1e3 then
+		return string.format("%.1fK", num / 1e3):gsub("%.0K", "K")
+	else
+		return tostring(num)
+	end
 end
 
 local function BuildMasterWindow()
@@ -129,13 +145,14 @@ local function BuildMasterWindow()
 	lblPrestige = CreateTopBox("PRESTIGE", "#FFD700")
 	lblElo = CreateTopBox("ELO RATING", "#55AAFF")
 
+	-- [[ THE FIX: Applied FormatAbbreviation to all stat displays ]]
 	local function UpdateCurrencies()
 		local ls = player:FindFirstChild("leaderstats")
-		lblPrestige.Text = tostring((ls and ls:FindFirstChild("Prestige")) and ls.Prestige.Value or 0)
-		lblElo.Text = tostring((ls and ls:FindFirstChild("Elo")) and ls.Elo.Value or 1000)
-		lblDews.Text = tostring(player:GetAttribute("Dews") or 0)
-		lblXP.Text = tostring(player:GetAttribute("XP") or 0)
-		lblTitanXP.Text = tostring(player:GetAttribute("TitanXP") or 0)
+		lblPrestige.Text = FormatAbbreviation((ls and ls:FindFirstChild("Prestige")) and ls.Prestige.Value or 0)
+		lblElo.Text = FormatAbbreviation((ls and ls:FindFirstChild("Elo")) and ls.Elo.Value or 1000)
+		lblDews.Text = FormatAbbreviation(player:GetAttribute("Dews") or 0)
+		lblXP.Text = FormatAbbreviation(player:GetAttribute("XP") or 0)
+		lblTitanXP.Text = FormatAbbreviation(player:GetAttribute("TitanXP") or 0)
 	end
 
 	player.AttributeChanged:Connect(function(a) 
@@ -186,13 +203,21 @@ local function BuildMasterWindow()
 		hLeft.BackgroundTransparency = 1
 
 		local GameIcon = Instance.new("ImageLabel", hLeft)
-		GameIcon.Size = UDim2.new(1, 0, 0.45, 0)
+		GameIcon.Size = UDim2.new(0, 240, 0, 240) -- Fixed square size
+		GameIcon.Position = UDim2.new(0.5, 0, 0.22, 0) -- Centered horizontally, pushed slightly up
+		GameIcon.AnchorPoint = Vector2.new(0.5, 0.5) -- Anchor to the center of the image
 		GameIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-		GameIcon.Image = "rbxassetid://100826303284945" 
-		GameIcon.ScaleType = Enum.ScaleType.Crop
+		GameIcon.Image = "rbxassetid://129999765135567" 
+		GameIcon.ScaleType = Enum.ScaleType.Fit -- Fit instead of Crop so the logo doesn't get cut off
+
+		-- Ensures it stays a perfect square even if the window resizes
+		local giAspect = Instance.new("UIAspectRatioConstraint", GameIcon)
+		giAspect.AspectRatio = 1.0 
+
 		local giStroke = Instance.new("UIStroke", GameIcon)
 		giStroke.Color = UIHelpers.Colors.Gold
 		giStroke.Thickness = 2
+		-- Removed UICorner to keep it perfectly sharp
 
 		local ChangeLogBox = Instance.new("Frame", hLeft)
 		ChangeLogBox.Size = UDim2.new(1, 0, 0.5, 0)
@@ -201,6 +226,7 @@ local function BuildMasterWindow()
 		local clStroke = Instance.new("UIStroke", ChangeLogBox)
 		clStroke.Color = Color3.fromRGB(70, 70, 80)
 		clStroke.Thickness = 2
+		-- Removed UICorner to keep it perfectly sharp
 
 		local clTitle = UIHelpers.CreateLabel(ChangeLogBox, "CHANGELOG & CODES", UDim2.new(1, -20, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 16)
 		clTitle.Position = UDim2.new(0, 10, 0, 10)
@@ -219,6 +245,7 @@ local function BuildMasterWindow()
 		local hrStroke = Instance.new("UIStroke", hRight)
 		hrStroke.Color = Color3.fromRGB(70, 70, 80)
 		hrStroke.Thickness = 2
+		-- Removed UICorner to keep it perfectly sharp
 
 		local lbHeader = UIHelpers.CreateLabel(hRight, "GLOBAL APEX LEADERBOARDS", UDim2.new(1, -20, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 20)
 		lbHeader.Position = UDim2.new(0, 15, 0, 15)
@@ -412,7 +439,7 @@ end
 
 local function BuildBottomBar()
 	local Dock = Instance.new("Frame", MasterGui)
-	Dock.Size = UDim2.new(0, 390, 0, 70) 
+	Dock.Size = UDim2.new(0, 460, 0, 70) 
 	Dock.AnchorPoint = Vector2.new(0.5, 1)
 	Dock.Position = UDim2.new(0.5, 0, 1, -20)
 
@@ -428,7 +455,8 @@ local function BuildBottomBar()
 	layout.Padding = UDim.new(0, 20)
 
 	local dockButtons = {
-		{Id = "PROFILE", Title = "OPERATIVE PROFILE", Icon = "rbxassetid://100709766417970"}, 
+		{Id = "HOME", Title = "COMMAND CENTER", Icon = "rbxassetid://129528574378357"},
+		{Id = "PROFILE", Title = "OPERATIVE PROFILE", Icon = "rbxassetid://106161709171988"}, 
 		{Id = "EXPEDITIONS", Title = "COMBAT DEPLOYMENT", Icon = "rbxassetid://115407261158495"},  
 		{Id = "SQUADS", Title = "STRIKE SQUADS COMMAND", Icon = "rbxassetid://111674249930782"}, 
 		{Id = "SUPPLY_FORGE", Title = "MARKET & FORGERY", Icon = "rbxassetid://108619507999123"},
@@ -439,7 +467,6 @@ local function BuildBottomBar()
 		local btn = UIHelpers.CreateIconButton(Dock, btnData.Icon, UDim2.new(0, 50, 0, 50))
 		btn.MouseButton1Click:Connect(function() OpenMasterTab(btnData.Id, btnData.Title) end)
 
-		-- [[ THE FIX: Dynamically update the Regiment Dock Icon based on player's pledged faction ]]
 		if btnData.Id == "REGIMENTS" then
 			local function UpdateRegimentIcon()
 				local currentReg = player:GetAttribute("Regiment") or "Cadet Corps"
@@ -450,7 +477,6 @@ local function BuildBottomBar()
 					newIcon = regDataModule.Regiments[currentReg].Icon
 				end
 
-				-- Safely find the image inside the generated UIHelper button
 				if btn:IsA("ImageButton") or btn:IsA("ImageLabel") then
 					btn.Image = newIcon
 				else
@@ -459,7 +485,6 @@ local function BuildBottomBar()
 				end
 			end
 
-			-- Listen to changes and apply initially
 			player.AttributeChanged:Connect(function(attr)
 				if attr == "Regiment" then UpdateRegimentIcon() end
 			end)
