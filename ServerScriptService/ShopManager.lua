@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
 local GameData = require(ReplicatedStorage:WaitForChild("GameData")) 
+local TitanData = require(ReplicatedStorage:WaitForChild("TitanData")) -- Required just in case
 local GameDataStore = DataStoreService:GetDataStore("AoT_Data_V5") 
 
 local Network = ReplicatedStorage:WaitForChild("Network")
@@ -13,6 +14,23 @@ local GetShopData = Network:WaitForChild("GetShopData")
 local BuyAction = Network:FindFirstChild("ShopAction") or Instance.new("RemoteEvent", Network)
 BuyAction.Name = "ShopAction"
 local NotificationEvent = Network:WaitForChild("NotificationEvent")
+
+-- [[ THE FIX: Local Inventory Counter to bypass the GameData global error ]]
+local MAX_INVENTORY_CAPACITY = 50
+local function GetUniqueSlotCount(plr)
+	local count = 0
+	if ItemData.Equipment then
+		for iName, _ in pairs(ItemData.Equipment) do
+			if (plr:GetAttribute(iName:gsub("[^%w]", "") .. "Count") or 0) > 0 then count += 1 end
+		end
+	end
+	if ItemData.Consumables then
+		for iName, _ in pairs(ItemData.Consumables) do
+			if (plr:GetAttribute(iName:gsub("[^%w]", "") .. "Count") or 0) > 0 then count += 1 end
+		end
+	end
+	return count
+end
 
 local PathNodes = {
 	["Path of the Striker"] = { Stat = "DMG", Cost = 5, Increment = 5, MaxLevel = 10, Desc = "+5% Base Damage" },
@@ -130,13 +148,12 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 		targetPurchase = actionType
 	end
 
-	-- [[ NEW: PREMIUM ROUTING ]]
+	-- PREMIUM ROUTING
 	if actionType == "PromptPremium" then
 		local targetName = itemName
 		local targetId = nil
 		local isGamepass = false
 
-		-- Check Gamepasses first
 		if ItemData.Gamepasses then
 			for _, gp in ipairs(ItemData.Gamepasses) do
 				if string.upper(gp.Name) == string.upper(targetName) then
@@ -147,7 +164,6 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 			end
 		end
 
-		-- Check DevProducts if not found
 		if not targetId and ItemData.Products then
 			for _, prod in ipairs(ItemData.Products) do
 				if string.upper(prod.Name or prod.ItemName or "") == string.upper(targetName) then
@@ -165,16 +181,14 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 			end
 		else
 			NotificationEvent:FireClient(player, "Premium Item ID not configured yet.", "Error")
-			warn("[ShopManager] Could not find ID for premium item:", targetName)
 		end
 		return
 
-			-- [[ NEW: GIFT ROUTING ]]
+			-- GIFT ROUTING
 	elseif actionType == "PromptGift" then
 		local targetName = itemName
 		local targetId = nil
 
-		-- Gifts are ALWAYS DevProducts so they can be bought infinitely
 		if ItemData.Products then
 			for _, prod in ipairs(ItemData.Products) do
 				if prod.IsGift and string.upper(prod.TargetPass or "") == string.upper(targetName) then
@@ -188,7 +202,6 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 			MarketplaceService:PromptProductPurchase(player, targetId)
 		else
 			NotificationEvent:FireClient(player, "Gift version not configured yet.", "Error")
-			warn("[ShopManager] Could not find Gift Product ID for:", targetName)
 		end
 		return
 
@@ -269,8 +282,10 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 		local attrName = targetItem.Name:gsub("[^%w]", "") .. "Count"
 		local currentCount = player:GetAttribute(attrName) or 0
 
+		-- [[ THE FIX: Validating Inventory using the new local function instead of GameData ]]
 		if currentCount == 0 then
-			if GameData.GetInventoryCount(player) >= GameData.GetMaxInventory(player) then
+			local maxInv = player:GetAttribute("HasBackpackExpansion") and 100 or MAX_INVENTORY_CAPACITY
+			if GetUniqueSlotCount(player) >= maxInv then
 				NotificationEvent:FireClient(player, "Your inventory is full! Sell items at the Forge.", "Error")
 				return
 			end
@@ -346,8 +361,6 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 					local attrName = prod.ItemName:gsub("[^%w]", "") .. "Count"
 					player:SetAttribute(attrName, (player:GetAttribute(attrName) or 0) + prod.Amount)
 					NotificationEvent:FireClient(player, "Purchased " .. prod.ItemName .. "!", "Success")
-
-					-- [[ THE FIX: Transform Gift product into an Inventory Item ]]
 				elseif prod.IsGift then
 					local giftName = (prod.TargetPass or "Premium") .. " Gift"
 					local attrName = giftName:gsub("[^%w]", "") .. "Count"
@@ -385,8 +398,6 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 		if ItemData.Gamepasses then
 			for _, gp in ipairs(ItemData.Gamepasses) do
 				if gp.ID == gamePassId then
-
-					-- Standard Pass Assignments
 					if string.find(string.upper(gp.Name), "VIP") then
 						player:SetAttribute("HasVIP", true)
 					elseif string.find(string.upper(gp.Name), "2X EXP") then
