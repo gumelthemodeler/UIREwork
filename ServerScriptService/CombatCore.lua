@@ -1,0 +1,546 @@
+-- @ScriptType: ModuleScript
+-- @ScriptType: ModuleScript
+local CombatCore = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SkillData = require(ReplicatedStorage:WaitForChild("SkillData"))
+local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
+local TitanData = require(ReplicatedStorage:WaitForChild("TitanData"))
+local ClanData = require(ReplicatedStorage:WaitForChild("ClanData"))
+
+local function GetSetBonus(playerObj)
+	local wpn = playerObj:GetAttribute("EquippedWeapon")
+	local acc = playerObj:GetAttribute("EquippedAccessory")
+	if not wpn or not acc then return nil end
+
+	for setName, setData in pairs(ItemData.Sets or {}) do
+		if setData.Pieces.Weapon == wpn and setData.Pieces.Accessory == acc then
+			return setData.Bonus
+		end
+	end
+	return nil
+end
+
+function CombatCore.TickStatuses(combatant)
+	local dotDamage = 0
+	local dotLog = ""
+
+	if combatant.Cooldowns then
+		for sName, cd in pairs(combatant.Cooldowns) do
+			if cd > 0 then combatant.Cooldowns[sName] = cd - 1 end
+		end
+	end
+
+	if combatant.GateType == "Steam" and combatant.GateHP and combatant.GateHP > 0 then 
+		combatant.GateHP = math.max(0, combatant.GateHP - 1) 
+	end
+
+	if combatant.Statuses then
+		if combatant.Statuses["Bleed"] and combatant.Statuses["Bleed"] > 0 then
+			local dmg = combatant.IsPlayer and math.floor(combatant.MaxHP * 0.05) or math.min(math.floor(combatant.MaxHP * 0.02), 500)
+			dotDamage += dmg
+			dotLog = dotLog .. " <font color='#FF5555'>[BLEED: -" .. dmg .. "]</font>"
+		end
+		if combatant.Statuses["Burn"] and combatant.Statuses["Burn"] > 0 then
+			local dmg = combatant.IsPlayer and math.floor(combatant.MaxHP * 0.05) or math.min(math.floor(combatant.MaxHP * 0.02), 600)
+			dotDamage += dmg
+			dotLog = dotLog .. " <font color='#FFAA00'>[BURN: -" .. dmg .. "]</font>"
+		end
+
+		local immunitiesToTick = {}
+		local immunitiesToAdd = {}
+
+		for sName, duration in pairs(combatant.Statuses) do
+			if string.find(sName, "Immunity") then
+				table.insert(immunitiesToTick, sName)
+			elseif sName ~= "Transformed" and type(duration) == "number" and duration > 0 then
+				combatant.Statuses[sName] = duration - 1
+				if combatant.Statuses[sName] <= 0 then 
+					combatant.Statuses[sName] = nil 
+					if sName == "Stun" or sName == "Bleed" or sName == "Burn" or sName == "Crippled" or sName == "Immobilized" or sName == "Weakened" or sName == "Blinded" or sName == "TrueBlind" or sName == "Debuff_Defense" then
+						immunitiesToAdd[sName .. "Immunity"] = 2
+					end
+				end
+			end
+		end
+
+		for _, immName in ipairs(immunitiesToTick) do
+			combatant.Statuses[immName] = combatant.Statuses[immName] - 1
+			if combatant.Statuses[immName] <= 0 then combatant.Statuses[immName] = nil end
+		end
+		for immName, dur in pairs(immunitiesToAdd) do
+			combatant.Statuses[immName] = dur
+		end
+	end
+
+	return dotDamage, dotLog
+end
+
+function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
+	local atkStrength = math.max(1, tonumber(attacker.TotalStrength) or 10)
+	local defArmor = math.max(1, tonumber(defender.TotalDefense) or 10)
+
+	local atkBuff = 1.0
+	local defBuff = 1.0
+
+	if attacker.Statuses then
+		if (tonumber(attacker.Statuses.Buff_Strength) or 0) > 0 then atkBuff = atkBuff * 1.5 end
+		if (tonumber(attacker.Statuses.Weakened) or 0) > 0 then atkBuff = atkBuff * 0.5 end
+	end
+
+	if defender.Statuses then
+		if (tonumber(defender.Statuses.Buff_Defense) or 0) > 0 then defBuff = defBuff * 1.5 end
+		if (tonumber(defender.Statuses.Crippled) or 0) > 0 then defBuff = defBuff * 0.5 end
+		if (tonumber(defender.Statuses.Debuff_Defense) or 0) > 0 then defBuff = defBuff * 0.5 end
+	end
+
+	local isAttackerTransformed = attacker.Statuses and (tonumber(attacker.Statuses.Transformed) or 0) > 0
+	local isDefenderTransformed = defender.Statuses and (tonumber(defender.Statuses.Transformed) or 0) > 0
+
+	if attacker.IsPlayer and isAttackerTransformed then
+		local titanPower = tonumber(attacker.PlayerObj:GetAttribute("Titan_Power_Val")) or 10
+		atkBuff = atkBuff * (1.0 + (titanPower / 35.0))
+	end
+	if defender.IsPlayer and isDefenderTransformed then
+		local titanHardening = tonumber(defender.PlayerObj:GetAttribute("Titan_Hardening_Val")) or 10
+		defBuff = defBuff * (1.0 + (titanHardening / 35.0))
+	end
+
+	local armorPen = 0
+
+	if attacker.IsPlayer then
+		local aStats = ClanData.GetClanStats(attacker.Clan, string.find(tostring(attacker.Clan or ""), "Awakened"), attacker.Titan, isAttackerTransformed)
+		atkBuff = atkBuff * aStats.DmgMult
+
+		local setBonus = GetSetBonus(attacker.PlayerObj)
+		if setBonus then
+			if setBonus.DmgMult then atkBuff = atkBuff * setBonus.DmgMult end
+			if setBonus.IgnoreArmor then armorPen = armorPen + setBonus.IgnoreArmor end
+		end
+
+		local expiry = attacker.PlayerObj and tonumber(attacker.PlayerObj:GetAttribute("Buff_Damage_Expiry")) or 0
+		if expiry > os.time() then atkBuff = atkBuff * 1.5 end
+
+		local prestigeDmg = tonumber(attacker.PlayerObj:GetAttribute("Prestige_DmgMult")) or 0
+		atkBuff = atkBuff * (1.0 + prestigeDmg)
+
+		armorPen = armorPen + (tonumber(attacker.PlayerObj:GetAttribute("Prestige_IgnoreArmor")) or 0)
+	end
+
+	if defender.IsPlayer then
+		local dStats = ClanData.GetClanStats(defender.Clan, string.find(tostring(defender.Clan or ""), "Awakened"), defender.Titan, isDefenderTransformed)
+		defBuff = defBuff * dStats.ArmorMult
+	end
+
+	if attacker.AwakenedStats then
+		if (tonumber(attacker.AwakenedStats.DmgMult) or 1.0) > 1.0 then atkBuff = atkBuff * tonumber(attacker.AwakenedStats.DmgMult) end
+		if (tonumber(attacker.AwakenedStats.IgnoreArmor) or 0) > 0 then armorPen = armorPen + tonumber(attacker.AwakenedStats.IgnoreArmor) end
+	end
+
+	if armorPen > 0 then defBuff = defBuff * math.max(0.1, 1.0 - armorPen) end
+
+	local effectiveAttack = atkStrength * atkBuff
+	local effectiveDefense = defArmor * defBuff
+
+	-- [[ THE PERMANENT FIX: PURE RATIO EXPONENTIAL MATH ]]
+	-- Completely strips out all "hardcap fixed values" (like the old 300 / 300+Armor logic).
+	-- Scales beautifully to infinity. If Defense heavily outweighs Attack, the damage organically curves down but never hits zero.
+	local statRatio = effectiveAttack / math.max(1, effectiveAttack + effectiveDefense)
+	local powerCurve = math.pow(statRatio, 1.25)
+
+	skillMult = tonumber(skillMult) or 1.0
+	local systemicMultiplier = attacker.IsPlayer and 1.5 or 0.35 
+
+	local baseDmg = effectiveAttack * powerCurve * skillMult * systemicMultiplier
+
+	targetLimb = tostring(targetLimb or "Body")
+	if targetLimb == "Nape" then
+		if defender.Statuses and (tonumber(defender.Statuses.NapeGuard) or 0) > 0 then return 1 else baseDmg = baseDmg * 1.5 end
+	elseif targetLimb == "Legs" or targetLimb == "Arms" then baseDmg = baseDmg * 0.5
+	elseif targetLimb == "Eyes" then baseDmg = baseDmg * 0.2 end
+
+	local synergyOwner = defender.SynergyOwners and defender.SynergyOwners[targetLimb]
+	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] then
+		if attacker.IsPlayer and synergyOwner ~= attacker.PlayerObj.UserId then
+			baseDmg = baseDmg * 2.5
+		end
+	end
+
+	if defender.Name == "Abyssal Armored Titan" then
+		local aStyle = tostring(attacker.Style or "None")
+		if attacker.IsPlayer and not isAttackerTransformed and (aStyle == "Ultrahard Steel Blades" or aStyle == "None") then
+			baseDmg = math.pow(baseDmg, 0.65) -- Organic non-linear resistance
+		end
+	end
+
+	return math.max(1, math.floor(baseDmg))
+end
+
+function CombatCore.TakeDamage(combatant, damage, attackerStyle)
+	local actualDmg = tonumber(damage) or 0
+	local hitGate = false; local gateBroken = false; local gateName = tostring(combatant.GateType or "Shield")
+	local gateHP = tonumber(combatant.GateHP) or 0
+
+	if gateHP > 0 then
+		hitGate = true
+		if combatant.GateType == "Steam" then actualDmg = 0 
+		else
+			if combatant.GateType == "Reinforced Skin" and tostring(attackerStyle) == "Thunder Spears" then actualDmg = actualDmg * 5.0 end
+
+			if actualDmg >= gateHP then
+				actualDmg = actualDmg - gateHP; combatant.GateHP = 0; gateBroken = true
+			else combatant.GateHP = gateHP - actualDmg; actualDmg = 0 end
+		end
+	end
+
+	local survivalTriggered = false
+	if actualDmg > 0 then
+		local currentHP = tonumber(combatant.HP) or 0
+		if (currentHP - actualDmg) < 1 then
+			local resolveStat = tonumber(combatant.TotalResolve) or 10
+			local survivalChance = math.clamp(resolveStat * 0.7, 0, 45)
+			local maxSurvivals = 1
+
+			if combatant.IsPlayer then
+				local cStats = ClanData.GetClanStats(combatant.Clan, string.find(tostring(combatant.Clan or ""), "Awakened"), combatant.Titan, combatant.Statuses and combatant.Statuses["Transformed"])
+				if cStats.SurvivalChance > 0 then survivalChance = cStats.SurvivalChance end
+				if cStats.Survivals > 0 then maxSurvivals = cStats.Survivals end
+				maxSurvivals = maxSurvivals + (tonumber(combatant.PlayerObj:GetAttribute("Prestige_Survivals")) or 0)
+			end
+
+			local usedSurvivals = tonumber(combatant.ResolveSurvivals) or 0
+			if usedSurvivals < maxSurvivals and math.random(1, 100) <= survivalChance then
+				combatant.HP = 1; combatant.ResolveSurvivals = usedSurvivals + 1; survivalTriggered = true 
+			else combatant.HP = currentHP - actualDmg end
+		else combatant.HP = currentHP - actualDmg end
+	end
+	return survivalTriggered, hitGate, gateBroken, actualDmg, gateName
+end
+
+function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, logName, defName, logColor, defColor)
+	skillName = tostring(skillName or "Brutal Swipe")
+	targetLimb = tostring(targetLimb or "Body")
+
+	local fallbackSkill = { Mult = 1.0, Cooldown = 0, Hits = 1, Effect = "None", Description = "A basic attack." }
+	local skill = SkillData.Skills[skillName] or SkillData.Skills["Brutal Swipe"] or fallbackSkill
+
+	local fLogName = "<font color='" .. tostring(logColor or "#FFFFFF") .. "'>" .. tostring(logName or "Attacker") .. "</font>"
+	local fDefName = "<font color='" .. tostring(defColor or "#FF5555") .. "'>" .. tostring(defName or "Defender") .. "</font>"
+
+	if attacker.Cooldowns then attacker.Cooldowns[skillName] = tonumber(skill.Cooldown) or 0 end
+
+	local defGateHP = tonumber(defender.GateHP) or 0
+	if (skill.Effect == "Block" or skillName == "Maneuver" or skillName == "Evasive Maneuver") and defender.GateType == "Steam" and defGateHP > 0 then 
+		if attacker.Cooldowns then attacker.Cooldowns[skillName] = 0 end 
+	end
+
+	local isSequenceCombo = false; local comboMult = 1.0
+	local lastAtkSkill = tostring(attacker.LastSkill or "None")
+
+	if skill.ComboReq and lastAtkSkill == skill.ComboReq then 
+		isSequenceCombo = true; comboMult = tonumber(skill.ComboMult) or 1.5 
+	end
+
+	if skill.Effect == "Block" or skillName == "Maneuver" or skillName == "Evasive Maneuver" then
+		if not attacker.Statuses then attacker.Statuses = {} end
+		local blind = tonumber(attacker.Statuses.Blinded) or 0
+		local trueBlind = tonumber(attacker.Statuses.TrueBlind) or 0
+
+		if blind > 0 or trueBlind > 0 then return fLogName .. " attempted to use <b>" .. skillName .. "</b>, but stumbled due to blindness!", false, "None" end
+		attacker.Statuses["Dodge"] = 1; attacker.LastSkill = skillName 
+		return fLogName .. " used <b>" .. skillName .. "</b>! " .. fLogName .. " maneuvers rapidly, dodging the next attack.", false, "None"
+
+	elseif skill.Effect == "NapeGuard" then
+		if not attacker.Statuses then attacker.Statuses = {} end
+		attacker.Statuses["NapeGuard"] = tonumber(skill.Duration) or 2
+		attacker.LastSkill = skillName
+		return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#AA55FF'>[NAPE GUARDED]</font>", false, "None"
+
+	elseif string.find(tostring(skill.Effect), "Buff_") and (tonumber(skill.Mult) or 0) == 0 then
+		if not attacker.Statuses then attacker.Statuses = {} end
+		attacker.Statuses[skill.Effect] = tonumber(skill.Duration) or 2
+		attacker.LastSkill = skillName
+		return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#AA55FF'>[" .. string.gsub(skill.Effect:upper(), "_", " ") .. " ACTIVATED]</font>", false, "None"
+
+	elseif skill.Effect == "Rest" or skillName == "Recover" or skillName == "Regroup" then
+		local healAmount = (tonumber(attacker.MaxHP) or 100) * 0.30
+		attacker.HP = math.min(tonumber(attacker.MaxHP) or 100, (tonumber(attacker.HP) or 0) + healAmount); attacker.LastSkill = skillName
+		local regroupWord = attacker.IsPlayer and "regroup" or "regroups"
+		return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#55FF55'>" .. fLogName .. " " .. regroupWord .. ", recovering HP and Gas.</font>", false, "None"
+
+	elseif skill.Effect == "Transform" then
+		if not attacker.Statuses then attacker.Statuses = {} end
+		attacker.Statuses["Transformed"] = 999; attacker.LastSkill = skillName; attacker.HP = tonumber(attacker.MaxHP) or 100
+		attacker.TitanEnergy = tonumber(attacker.MaxTitanEnergy) or 100
+		return fLogName .. " used <b>" .. skillName .. "</b>! Lightning strikes as " .. fLogName .. " shifts into a Titan! <font color='#55FF55'>[HP & HEAT Restored]</font>", false, "Heavy"
+
+	elseif skill.Effect == "Eject" then
+		if attacker.Statuses then attacker.Statuses["Transformed"] = nil end
+		attacker.LastSkill = skillName
+		return fLogName .. " used <b>" .. skillName .. "</b>! " .. fLogName .. " cuts themselves out of the nape, returning to human form.", false, "None"
+
+	elseif skill.Effect == "TitanRest" or skillName == "Titan Recover" then
+		local healAmount = (tonumber(attacker.MaxHP) or 100) * 0.60
+		attacker.HP = math.min(tonumber(attacker.MaxHP) or 100, (tonumber(attacker.HP) or 0) + healAmount); attacker.LastSkill = skillName
+		return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#55FF55'>" .. fLogName .. " uses immense steam to regenerate " .. math.floor(healAmount) .. " HP.</font>", false, "None"
+	end
+
+	local hitsToDo = tonumber(skill.Hits) or 1; local hitLogs = {}; local didHitAtAll = false; local overallShake = "None"
+	local synergyTag = isSequenceCombo and " <font color='#FFD700'>[SYNERGY: " .. lastAtkSkill .. " -> " .. skillName .. "]</font>" or ""
+
+	local synergyOwner = defender.SynergyOwners and defender.SynergyOwners[targetLimb]
+	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] and attacker.IsPlayer and synergyOwner ~= attacker.PlayerObj.UserId then
+		synergyTag = synergyTag .. " <font color='#55FFFF'><b>[CO-OP TAKEDOWN!]</b></font>"
+		defender.Statuses["SynergyMark_" .. targetLimb] = nil
+	end
+
+	local atkSpd = tonumber(attacker.TotalSpeed) or 10
+	local defSpd = tonumber(defender.TotalSpeed) or 10
+	local atkRes = tonumber(attacker.TotalResolve) or 10
+	local defRes = tonumber(defender.TotalResolve) or 10
+
+	local aStats = attacker.IsPlayer and ClanData.GetClanStats(attacker.Clan, string.find(tostring(attacker.Clan or ""), "Awakened"), attacker.Titan, attacker.Statuses and attacker.Statuses["Transformed"]) or ClanData.GetClanStats()
+	local dStats = defender.IsPlayer and ClanData.GetClanStats(defender.Clan, string.find(tostring(defender.Clan or ""), "Awakened"), defender.Titan, defender.Statuses and defender.Statuses["Transformed"]) or ClanData.GetClanStats()
+
+	atkSpd = atkSpd * aStats.SpdMult
+	atkRes = atkRes * aStats.ResolveMult
+	defSpd = defSpd * dStats.SpdMult
+	defRes = defRes * dStats.ResolveMult
+
+	for i = 1, hitsToDo do
+		local currentDefHP = tonumber(defender.HP) or 0
+		if currentDefHP < 1 and i > 1 then break end 
+
+		local isDodging = false
+		if defender.Statuses then
+			if (tonumber(defender.Statuses.Dodge) or 0) > 0 then isDodging = true end
+			if (tonumber(defender.Statuses.Crippled) or 0) > 0 then defSpd = defSpd * 0.5 end
+			if (tonumber(defender.Statuses.Immobilized) or 0) > 0 then defSpd = 0 end
+		end
+
+		local dodgeChance = 5 + ((defSpd - atkSpd) * 0.08) 
+		local targetCrip = defender.Statuses and (tonumber(defender.Statuses.Crippled) or 0) > 0
+		if targetLimb == "Nape" and not targetCrip then dodgeChance = dodgeChance + 15 end
+
+		dodgeChance += dStats.DodgeBonus
+
+		if defender.AwakenedStats and (tonumber(defender.AwakenedStats.DodgeBonus) or 0) > 0 then dodgeChance = dodgeChance + tonumber(defender.AwakenedStats.DodgeBonus) end
+		if defender.IsPlayer then
+			dodgeChance = dodgeChance + (tonumber(defender.PlayerObj:GetAttribute("Prestige_DodgeBonus")) or 0)
+			local accName = defender.PlayerObj:GetAttribute("EquippedAccessory")
+			local accData = accName and ItemData.Equipment[accName]
+			if accData and accData.NoDodge then dodgeChance = 0; isDodging = false end
+
+			local setBonus = GetSetBonus(defender.PlayerObj)
+			if setBonus and setBonus.DodgeBonus then dodgeChance = dodgeChance + setBonus.DodgeBonus end
+		end
+
+		local titanNameCheck = ""
+		if not defender.IsPlayer then
+			titanNameCheck = defender.Name or ""
+		elseif defender.Statuses and (tonumber(defender.Statuses.Transformed) or 0) > 0 then
+			titanNameCheck = tostring(defender.Titan or "None")
+		end
+
+		if titanNameCheck ~= "" then
+			if string.find(titanNameCheck, "Founding Titan") or string.find(titanNameCheck, "Colossal") then
+				dodgeChance = dodgeChance - 40 
+			elseif string.find(titanNameCheck, "Beast Titan") then
+				dodgeChance = dodgeChance - 20 
+			elseif string.find(titanNameCheck, "Armored Titan") then
+				dodgeChance = dodgeChance - 15 
+			elseif string.find(titanNameCheck, "Female Titan") then
+				dodgeChance = dodgeChance - 10
+			end
+		end
+
+		if isDodging then 
+			dodgeChance = 100 
+		elseif not defender.IsPlayer then
+			dodgeChance = math.clamp(dodgeChance, 0, 20)
+		else
+			dodgeChance = math.clamp(dodgeChance, 0, 75)
+		end
+
+		if defender.Statuses and (tonumber(defender.Statuses.Immobilized) or 0) > 0 then dodgeChance = 0 end
+
+		if math.random(1, 100) <= (dodgeChance or 0) then
+			if hitsToDo == 1 then 
+				local dodgeMsg = isDodging and " (Maneuvered)" or ""
+				if attacker.IsPlayer then table.insert(hitLogs, fLogName .. " aimed for the <b>" .. targetLimb .. "</b>, but " .. fDefName .. " dodged!" .. dodgeMsg)
+				else table.insert(hitLogs, fLogName .. " attacked, but " .. fDefName .. " dodged!" .. dodgeMsg) end
+			else table.insert(hitLogs, "<font color='#AAAAAA'>- Hit " .. i .. " missed!</font>") end
+			continue
+		end
+
+		didHitAtAll = true
+
+		local critChance = 5 + ((atkRes - defRes) * 0.10)
+
+		if attacker.AwakenedStats and (tonumber(attacker.AwakenedStats.CritBonus) or 0) > 0 then critChance = critChance + tonumber(attacker.AwakenedStats.CritBonus) end
+
+		if attacker.IsPlayer then
+			critChance += aStats.CritBonus
+			critChance = critChance + (tonumber(attacker.PlayerObj:GetAttribute("Prestige_CritBonus")) or 0)
+			local setBonus = GetSetBonus(attacker.PlayerObj)
+			if setBonus and setBonus.CritBonus then critChance = critChance + setBonus.CritBonus end
+			critChance = math.clamp(critChance, 5, 75)
+		else
+			critChance = math.clamp(critChance, 5, 25)
+		end
+
+		local isCrit = math.random(1, 100) <= (critChance or 0)
+		local mult = (tonumber(skill.Mult) or 1.0) * (isCrit and 1.5 or 1.0) * comboMult
+		local baseDmg = CombatCore.CalculateDamage(attacker, defender, mult, targetLimb)
+
+		local survivalTriggered, hitGate, gateBroken, hpDmg, gateName = CombatCore.TakeDamage(defender, baseDmg, attacker.Style)
+
+		local effectLog = ""
+		local isArmored = defender.GateType == "Reinforced Skin" and (tonumber(defender.GateHP) or 0) > 0
+
+		if attacker.Name == "Doomsday Apparition" and defender.IsPlayer then
+			defender.Gas = math.max(0, (tonumber(defender.Gas) or 0) - 15)
+			if defender.TitanEnergy then defender.TitanEnergy = math.max(0, (tonumber(defender.TitanEnergy) or 0) - 15) end
+			if not defender.Statuses then defender.Statuses = {} end
+			defender.Statuses["Burn"] = math.max((tonumber(defender.Statuses["Burn"]) or 0), 2)
+			effectLog = effectLog .. " <font color='#FFAA00'>[DOOMSDAY AURA: Sapped 15 Gas/Heat & Inflicted Burn!]</font>"
+		end
+
+		if attacker.Name == "Abyssal Armored Titan" and defender.IsPlayer then
+			if not defender.Statuses then defender.Statuses = {} end
+			defender.Statuses["Bleed"] = math.max((tonumber(defender.Statuses["Bleed"]) or 0), 2)
+			effectLog = effectLog .. " <font color='#FF5555'>[ABYSSAL SPIKES: Bleed Inflicted!]</font>"
+		end
+
+		if defender.Name == "Abyssal Armored Titan" and attacker.IsPlayer then
+			local aStyle = tostring(attacker.Style or "None")
+			local isTransformed = attacker.Statuses and (tonumber(attacker.Statuses.Transformed) or 0) > 0
+			if not isTransformed and (aStyle == "Ultrahard Steel Blades" or aStyle == "None") then
+				effectLog = effectLog .. " <font color='#555555'>[BLADES DEFLECTED: Minimal Damage!]</font>"
+			end
+		end
+
+		if skill.Effect and skill.Effect ~= "None" and skill.Effect ~= "Block" and skill.Effect ~= "Rest" and skill.Effect ~= "Flee" and skill.Effect ~= "Transform" and skill.Effect ~= "Eject" and skill.Effect ~= "TitanRest" and skill.Effect ~= "FallBack" and skill.Effect ~= "CloseGap" then
+			if not defender.Statuses then defender.Statuses = {} end
+			local safeEffect = tostring(skill.Effect)
+
+			if safeEffect == "RestoreHeat" then
+				if attacker.IsPlayer then
+					local pNrg = tonumber(attacker.TitanEnergy) or 0
+					local maxNrg = tonumber(attacker.MaxTitanEnergy) or 100
+					attacker.TitanEnergy = math.min(maxNrg, pNrg + 40)
+
+					local pHP = tonumber(attacker.HP) or 0
+					local maxHP = tonumber(attacker.MaxHP) or 100
+					local healAmt = maxHP * 0.15
+					attacker.HP = math.min(maxHP, pHP + healAmt)
+					effectLog = effectLog .. " <font color='#55FF55'>[+40 HEAT | +15% HP]</font>"
+				end
+			else
+				local currentEffect = tonumber(defender.Statuses[safeEffect]) or 0
+				local currentImmunity = tonumber(defender.Statuses[safeEffect .. "Immunity"]) or 0
+
+				if isArmored and (safeEffect == "Stun" or safeEffect == "Bleed" or safeEffect == "Blinded" or safeEffect == "TrueBlind" or safeEffect == "Crippled" or safeEffect == "Weakened") then
+					effectLog = effectLog .. " <font color='#888888'>[ARMOR RESISTS EFFECT]</font>"
+				elseif currentEffect > 0 then effectLog = effectLog .. " <font color='#888888'>[ALREADY ACTIVE]</font>"
+				elseif currentImmunity > 0 then effectLog = effectLog .. " <font color='#888888'>[IMMUNITY ACTIVE]</font>"
+				elseif safeEffect == "GasDrain" then
+					if defender.IsPlayer then
+						defender.Gas = math.max(0, (tonumber(defender.Gas) or 0) - 40)
+						effectLog = effectLog .. " <font color='#FF5555'>[-40 GAS]</font>"
+					end
+				elseif string.find(safeEffect, "Buff_") then
+					if not attacker.Statuses then attacker.Statuses = {} end
+					attacker.Statuses[safeEffect] = tonumber(skill.Duration) or 2
+					effectLog = effectLog .. " <font color='#55FF55'>[" .. string.gsub(safeEffect:upper(), "_", " ") .. "]</font>"
+				else
+					defender.Statuses[safeEffect] = tonumber(skill.Duration) or 2
+					effectLog = effectLog .. " <font color='#AA55FF'>[" .. safeEffect:upper() .. "]</font>"
+				end
+			end
+		end
+
+		if isArmored and (targetLimb == "Legs" or targetLimb == "Arms" or targetLimb == "Eyes") then effectLog = effectLog .. " <font color='#888888'>[ARMOR DEFLECTS DEBUFF]</font>"
+		else
+			if targetLimb == "Legs" and attacker.IsPlayer and not defender.IsHuman then
+				if not defender.Statuses then defender.Statuses = {} end
+				local cripStatus = tonumber(defender.Statuses["Crippled"]) or 0
+				local immobStatus = tonumber(defender.Statuses["Immobilized"]) or 0
+				local cripImm = tonumber(defender.Statuses["CrippledImmunity"]) or 0
+				local immobImm = tonumber(defender.Statuses["ImmobilizedImmunity"]) or 0
+
+				if cripStatus > 0 or immobStatus > 0 then
+					if cripStatus > 0 and immobStatus == 0 then defender.Statuses["Immobilized"] = 2; defender.Statuses["Crippled"] = nil; effectLog = effectLog .. " <font color='#00FF00'>[IMMOBILIZED]</font>"
+					else effectLog = effectLog .. " <font color='#888888'>[ALREADY ACTIVE]</font>" end
+				elseif cripImm > 0 or immobImm > 0 then effectLog = effectLog .. " <font color='#888888'>[IMMUNITY ACTIVE]</font>"
+				else defender.Statuses["Crippled"] = 3; effectLog = effectLog .. " <font color='#55FF55'>[CRIPPLED]</font>" end
+			elseif targetLimb == "Arms" and attacker.IsPlayer and not defender.IsHuman then
+				if not defender.Statuses then defender.Statuses = {} end
+				local weakStatus = tonumber(defender.Statuses["Weakened"]) or 0
+				local weakImm = tonumber(defender.Statuses["WeakenedImmunity"]) or 0
+
+				if weakStatus > 0 then effectLog = effectLog .. " <font color='#888888'>[ALREADY ACTIVE]</font>"
+				elseif weakImm > 0 then effectLog = effectLog .. " <font color='#888888'>[IMMUNITY ACTIVE]</font>"
+				else defender.Statuses["Weakened"] = 3; effectLog = effectLog .. " <font color='#FFDD55'>[WEAKENED]</font>" end
+			elseif targetLimb == "Eyes" and attacker.IsPlayer and not defender.IsHuman then
+				if not defender.Statuses then defender.Statuses = {} end
+				local tblBlind = tonumber(defender.Statuses["TrueBlind"]) or 0
+				local blStatus = tonumber(defender.Statuses["Blinded"]) or 0
+				local blImm = tonumber(defender.Statuses["BlindedImmunity"]) or 0
+				local tblImm = tonumber(defender.Statuses["TrueBlindImmunity"]) or 0
+
+				if tblBlind > 0 then effectLog = effectLog .. " <font color='#888888'>[ALREADY ACTIVE]</font>"
+				elseif blImm > 0 or tblImm > 0 then effectLog = effectLog .. " <font color='#888888'>[IMMUNITY ACTIVE]</font>"
+				else
+					if blStatus > 0 then defender.Statuses["TrueBlind"] = 2; defender.Statuses["Blinded"] = nil; effectLog = effectLog .. " <font color='#555555'>[TRUE BLINDNESS]</font>"
+					else defender.Statuses["Blinded"] = 2; effectLog = effectLog .. " <font color='#DDDDDD'>[BLINDED]</font>" end
+				end
+			end
+		end
+
+		if targetLimb == "Nape" and defender.Statuses and (tonumber(defender.Statuses["NapeGuard"]) or 0) > 0 then effectLog = effectLog .. " <font color='#AAAAAA'>[BLOCKED BY NAPE GUARD]</font>" end
+		if isCrit or survivalTriggered then overallShake = "Heavy" elseif overallShake == "None" then overallShake = "Normal" end
+
+		local hitMsg = ""
+		if attacker.IsPlayer then
+			hitMsg = hitsToDo == 1 and (fLogName .. " struck the <b>" .. targetLimb .. "</b>" .. synergyTag .. " for " .. math.floor(baseDmg) .. " dmg!" .. effectLog) or ("- Hit " .. i .. " dealt " .. math.floor(baseDmg) .. " damage" .. effectLog)
+		else
+			hitMsg = hitsToDo == 1 and (fLogName .. " struck you" .. synergyTag .. " for " .. math.floor(baseDmg) .. " dmg!" .. effectLog) or ("- Hit " .. i .. " dealt " .. math.floor(baseDmg) .. " damage" .. effectLog)
+		end
+
+		if isCrit then hitMsg = hitMsg .. " <font color='#FFAA00'>(CRIT!)</font>" end
+		if defender.GateType == "Steam" and hitGate then hitMsg = hitMsg .. " <font color='#FFAAAA'>(Repelled by Steam!)</font>"
+		elseif hitGate then hitMsg = hitMsg .. " <font color='#DDDDDD'>[Hit " .. tostring(gateName) .. "!]</font>" end
+		if gateBroken then hitMsg = hitMsg .. " <font color='#FFFFFF'><b>[" .. tostring(gateName):upper() .. " SHATTERED!]</b></font>" end
+		if survivalTriggered then hitMsg = hitMsg .. " <font color='#FF55FF'>...TATAKAE! (Refused to yield!)</font>" end
+
+		table.insert(hitLogs, hitMsg)
+	end
+
+	if attacker.IsPlayer and didHitAtAll then
+		if not defender.Statuses then defender.Statuses = {} end
+		if not defender.SynergyOwners then defender.SynergyOwners = {} end
+		defender.Statuses["SynergyMark_" .. targetLimb] = 2 
+		defender.SynergyOwners[targetLimb] = attacker.PlayerObj.UserId
+	end
+
+	local finalMsg = ""
+	if hitsToDo > 1 then
+		if not didHitAtAll then finalMsg = fLogName .. " unleashed <b>" .. skillName .. "</b>, but " .. fDefName .. " dodged completely!"
+		else finalMsg = fLogName .. " used <b>" .. skillName .. "</b>!" .. synergyTag .. "\n" .. table.concat(hitLogs, "\n") end
+	else finalMsg = hitLogs[1] or "" end
+
+	if attacker.IsPlayer and didHitAtAll then
+		local wpnName = attacker.PlayerObj:GetAttribute("EquippedWeapon")
+		local wpnData = wpnName and ItemData.Equipment[wpnName]
+		if wpnData and wpnData.SelfDamage then
+			local recoil = math.floor((tonumber(attacker.MaxHP) or 100) * wpnData.SelfDamage)
+			attacker.HP = math.max(1, (tonumber(attacker.HP) or 100) - recoil)
+			finalMsg = finalMsg .. "\n<font color='#FF3333'>[" .. attacker.Name .. " took " .. recoil .. " recoil damage from their Cursed Weapon!]</font>"
+		end
+	end
+
+	attacker.LastSkill = skillName
+	return finalMsg, didHitAtAll, overallShake
+end
+
+return CombatCore
