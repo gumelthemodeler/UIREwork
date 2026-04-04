@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: ProfileTab
 local ProfileTab = {}
 
@@ -15,11 +14,11 @@ local notifModule = script.Parent:WaitForChild("NotificationManager", 2)
 local NotificationManager = notifModule and require(notifModule) or nil
 local auraModule = script.Parent:WaitForChild("UIAuraManager", 2)
 local UIAuraManager = auraModule and require(auraModule) or nil
+local UIHelpers = require(script.Parent:WaitForChild("UIHelpers")) -- [[ THE FIX: Added UIHelpers ]]
 
 local player = Players.LocalPlayer
 local MainFrame, ColumnsWrapper, ContentArea, TabsWrapper
 
--- THE FIX: Properly declaring both tables so they aren't nil
 local SubTabs = {}
 local SubBtns = {}
 
@@ -153,18 +152,12 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	mLayout.FillDirection = Enum.FillDirection.Vertical 
 	local mPad = Instance.new("UIPadding", MainFrame); mPad.PaddingTop = UDim.new(0, 10); mPad.PaddingBottom = UDim.new(0, 10)
 
-	-- ==========================================
-	-- [[ COLUMNS WRAPPER ]]
-	-- ==========================================
 	ColumnsWrapper = Instance.new("Frame", MainFrame)
 	ColumnsWrapper.Size = UDim2.new(1, 0, 1, 0)
 	ColumnsWrapper.BackgroundTransparency = 1
 	ColumnsWrapper.LayoutOrder = 1
 	local cwLayout = Instance.new("UIListLayout", ColumnsWrapper); cwLayout.FillDirection = Enum.FillDirection.Horizontal; cwLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; cwLayout.Padding = UDim.new(0, 15)
 
-	-- ==========================================
-	-- [[ 1. PC COLUMN 1 (AVATAR & INFO) ]]
-	-- ==========================================
 	local ShowcaseCard = CreateGrimPanel(ColumnsWrapper)
 	ShowcaseCard.Size = UDim2.new(0.31, 0, 1, 0); ShowcaseCard.LayoutOrder = 1
 	local scLayout = Instance.new("UIListLayout", ShowcaseCard); scLayout.SortOrder = Enum.SortOrder.LayoutOrder; scLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; scLayout.Padding = UDim.new(0, 10)
@@ -190,9 +183,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	local PlayerNameLbl = CreateSharpLabel(ShowcaseCard, string.upper(player.Name), UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, Color3.fromRGB(245, 245, 245), 20); PlayerNameLbl.LayoutOrder = 3
 	regIcon = Instance.new("ImageLabel", ShowcaseCard); regIcon.Size = UDim2.new(0, 100, 0, 100); regIcon.BackgroundTransparency = 1; regIcon.ZIndex = 6; regIcon.LayoutOrder = 4
 
-	-- ==========================================
-	-- [[ 2. PC COLUMN 2 (RADAR & STATS) ]]
-	-- ==========================================
 	local MidCol = CreateGrimPanel(ColumnsWrapper)
 	MidCol.Size = UDim2.new(0.31, 0, 1, 0); MidCol.LayoutOrder = 2
 	local midLayout = Instance.new("UIListLayout", MidCol); midLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; midLayout.SortOrder = Enum.SortOrder.LayoutOrder; midLayout.Padding = UDim.new(0, 10)
@@ -232,9 +222,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	local ActionRow = Instance.new("Frame", MidCol); ActionRow.Size = UDim2.new(0.95, 0, 0, 40); ActionRow.BackgroundTransparency = 1; ActionRow.LayoutOrder = 5
 	toggleStatsBtn, _ = CreateSharpButton(ActionRow, "VIEW TITAN STATS", UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, 12)
 
-	-- ==========================================
-	-- [[ 3. PC COLUMN 3 (TABS WRAPPER) ]]
-	-- ==========================================
 	TabsWrapper = Instance.new("Frame", ColumnsWrapper)
 	TabsWrapper.Size = UDim2.new(0.32, 0, 1, 0); TabsWrapper.BackgroundTransparency = 1; TabsWrapper.LayoutOrder = 3
 	local twLayout = Instance.new("UIListLayout", TabsWrapper); twLayout.SortOrder = Enum.SortOrder.LayoutOrder; twLayout.Padding = UDim.new(0, 10)
@@ -274,12 +261,12 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	InvTitle = CreateSharpLabel(SubTabs["Inventory"], "INVENTORY (0/50)", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, Color3.fromRGB(225, 185, 60), 14)
 
 	local FilterFrame = Instance.new("Frame", SubTabs["Inventory"])
-	FilterFrame.Size = UDim2.new(1, 0, 0, 30); FilterFrame.Position = UDim2.new(0, 0, 0, 30); FilterFrame.BackgroundTransparency = 1
-	local ffLayout = Instance.new("UIListLayout", FilterFrame); ffLayout.FillDirection = Enum.FillDirection.Horizontal; ffLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; ffLayout.Padding = UDim.new(0, 8)
+	FilterFrame.Size = UDim2.new(1, -20, 0, 30); FilterFrame.Position = UDim2.new(0, 10, 0, 30); FilterFrame.BackgroundTransparency = 1
+	local ffLayout = Instance.new("UIListLayout", FilterFrame); ffLayout.FillDirection = Enum.FillDirection.Horizontal; ffLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left; ffLayout.Padding = UDim.new(0, 8)
 
 	local RefreshProfile 
 	local function MakeFilterBtn(id, text)
-		local btn, stroke = CreateSharpButton(FilterFrame, text, UDim2.new(0.31, 0, 1, 0), Enum.Font.GothamBlack, 10)
+		local btn, stroke = CreateSharpButton(FilterFrame, text, UDim2.new(0, 50, 1, 0), Enum.Font.GothamBlack, 10)
 		btn.TextColor3 = Color3.fromRGB(160, 160, 175)
 		btn.MouseButton1Click:Connect(function()
 			currentInvFilter = id
@@ -292,12 +279,55 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	MakeFilterBtn("All", "ALL"); MakeFilterBtn("Gear", "GEAR"); MakeFilterBtn("Items", "ITEMS")
 	FilterBtns["All"].TextColor3 = Color3.fromRGB(245, 245, 245); FilterBtns["All"]:FindFirstChild("UIStroke").Color = Color3.fromRGB(225, 185, 60)
 
+	-- [[ AUTO SELL CONFIG PANEL ]]
+	local AutoSellBtn, asStroke = CreateSharpButton(FilterFrame, "AUTO-SELL", UDim2.new(0, 75, 1, 0), Enum.Font.GothamBlack, 10)
+	AutoSellBtn.TextColor3 = UIHelpers.Colors.TextMuted
+
+	local AutoSellMenu = Instance.new("Frame", SubTabs["Inventory"])
+	AutoSellMenu.Size = UDim2.new(1, -20, 0, 160)
+	AutoSellMenu.Position = UDim2.new(0, 10, 0, 65)
+	AutoSellMenu.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+	AutoSellMenu.Visible = false
+	AutoSellMenu.ZIndex = 20
+	Instance.new("UIStroke", AutoSellMenu).Color = UIHelpers.Colors.Gold
+
+	local asTitle = UIHelpers.CreateLabel(AutoSellMenu, "AUTO-SELL SETTINGS", UDim2.new(1, 0, 0, 25), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 12)
+	local asList = Instance.new("Frame", AutoSellMenu)
+	asList.Size = UDim2.new(1, 0, 1, -30); asList.Position = UDim2.new(0, 0, 0, 25); asList.BackgroundTransparency = 1
+	local asLayout = Instance.new("UIListLayout", asList); asLayout.Padding = UDim.new(0, 4); asLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local function CreateASRow(rarityName, hexColor)
+		local row = Instance.new("Frame", asList); row.Size = UDim2.new(0.9, 0, 0, 25); row.BackgroundTransparency = 1
+		local lbl = UIHelpers.CreateLabel(row, rarityName:upper(), UDim2.new(0.6, 0, 1, 0), Enum.Font.GothamBold, Color3.fromHex(hexColor:gsub("#","")), 12); lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		local tBtn, tStrk = CreateSharpButton(row, "OFF", UDim2.new(0.35, 0, 1, 0), Enum.Font.GothamBlack, 10)
+		tBtn.Position = UDim2.new(1, 0, 0, 0); tBtn.AnchorPoint = Vector2.new(1, 0)
+
+		local function updateBtn()
+			if player:GetAttribute("AutoSell_" .. rarityName) then
+				tBtn.Text = "ON"; tBtn.TextColor3 = Color3.fromRGB(100, 255, 100); tStrk.Color = Color3.fromRGB(100, 255, 100)
+			else
+				tBtn.Text = "OFF"; tBtn.TextColor3 = UIHelpers.Colors.TextMuted; tStrk.Color = Color3.fromRGB(70, 70, 80)
+			end
+		end
+		updateBtn()
+		tBtn.MouseButton1Click:Connect(function() Network:WaitForChild("AutoSell"):FireServer(rarityName) end)
+		player.AttributeChanged:Connect(function(attr) if attr == "AutoSell_" .. rarityName then updateBtn() end end)
+	end
+
+	CreateASRow("Common", RarityColors["Common"])
+	CreateASRow("Uncommon", RarityColors["Uncommon"])
+	CreateASRow("Rare", RarityColors["Rare"])
+	CreateASRow("Epic", RarityColors["Epic"])
+
+	AutoSellBtn.MouseButton1Click:Connect(function() AutoSellMenu.Visible = not AutoSellMenu.Visible end)
+
+
 	InvGrid = Instance.new("ScrollingFrame", SubTabs["Inventory"])
 	InvGrid.Size = UDim2.new(1, -10, 1, -70); InvGrid.Position = UDim2.new(0, 5, 0, 65); InvGrid.BackgroundTransparency = 1; InvGrid.BorderSizePixel = 0; InvGrid.ScrollBarThickness = 4
 	local gl = Instance.new("UIGridLayout", InvGrid)
 	gl.CellSize = UDim2.new(0, 76, 0, 76); gl.CellPadding = UDim2.new(0, 10, 0, 12); gl.HorizontalAlignment = Enum.HorizontalAlignment.Center; gl.SortOrder = Enum.SortOrder.LayoutOrder
 
-	-- [[ 3C & 3D TITLES/AURAS LOGIC ]]
 	SubTabs["Titles"] = Instance.new("ScrollingFrame", ContentArea); SubTabs["Titles"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Titles"].BackgroundTransparency = 1; SubTabs["Titles"].Visible = false; SubTabs["Titles"].ScrollBarThickness = 6; SubTabs["Titles"].BorderSizePixel = 0
 	local tLayout = Instance.new("UIListLayout", SubTabs["Titles"]); tLayout.Padding = UDim.new(0, 10); tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; local tPad = Instance.new("UIPadding", SubTabs["Titles"]); tPad.PaddingTop = UDim.new(0, 10); tPad.PaddingBottom = UDim.new(0, 20)
 
@@ -432,10 +462,13 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 			card.Size = UDim2.new(0, 76, 0, 76); card.LayoutOrder = layoutOrderCounter; layoutOrderCounter += 1
 
 			local rarityKey = item.Data.Rarity or "Common"
-			if player:GetAttribute(item.Name:gsub("[^%w]", "") .. "_Awakened") then rarityKey = "Transcendent" end
-			local rarityRGB = Color3.fromHex((RarityColors[rarityKey] or "#FFFFFF"):gsub("#", ""))
+			local safeNameBase = item.Name:gsub("[^%w]", "")
 
-			card:FindFirstChild("UIStroke").Color = rarityRGB
+			if player:GetAttribute(safeNameBase .. "_Awakened") then rarityKey = "Transcendent" end
+			local rarityRGB = Color3.fromHex((RarityColors[rarityKey] or "#FFFFFF"):gsub("#", ""))
+			local isLocked = player:GetAttribute(safeNameBase .. "_Locked")
+
+			card:FindFirstChild("UIStroke").Color = isLocked and UIHelpers.Colors.Gold or rarityRGB
 
 			local bgGlow = Instance.new("Frame", card)
 			bgGlow.Size = UDim2.new(1, 0, 0.5, 0); bgGlow.Position = UDim2.new(0, 0, 0.5, 0); bgGlow.BackgroundColor3 = rarityRGB; bgGlow.BackgroundTransparency = 0.92; bgGlow.BorderSizePixel = 0; bgGlow.ZIndex = 1
@@ -443,6 +476,11 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 			local countBadge = Instance.new("Frame", card)
 			countBadge.Size = UDim2.new(0, 20, 0, 12); countBadge.AnchorPoint = Vector2.new(1, 0); countBadge.Position = UDim2.new(1, -4, 0, 6); countBadge.BackgroundColor3 = Color3.fromRGB(18, 18, 22); countBadge.BorderSizePixel = 1; countBadge.BorderColor3 = rarityRGB; countBadge.ZIndex = 3
 			local countTag = CreateSharpLabel(countBadge, "x" .. item.Count, UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, Color3.fromRGB(245, 245, 245), 9); countTag.ZIndex = 4
+
+			if isLocked then
+				local lockIcon = UIHelpers.CreateLabel(card, "🔒", UDim2.new(0, 15, 0, 15), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 12)
+				lockIcon.Position = UDim2.new(0, 5, 0, 5); lockIcon.ZIndex = 4
+			end
 
 			local nameLbl = CreateSharpLabel(card, item.Name, UDim2.new(0.88, 0, 0.5, 0), Enum.Font.GothamBold, Color3.fromRGB(245, 245, 245), 10)
 			nameLbl.Position = UDim2.new(0.5, 0, 0.5, 2); nameLbl.AnchorPoint = Vector2.new(0.5, 0.5); nameLbl.TextScaled = true; nameLbl.TextWrapped = true; nameLbl.ZIndex = 3
@@ -466,12 +504,20 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 
 				local buttonConsumed = false
 				local function MakeOverlayBtn(text)
-					local obtn, _ = CreateSharpButton(ActionsOverlay, text, UDim2.new(0.9, 0, 0, 18), Enum.Font.GothamBlack, 8)
+					local obtn, _ = CreateSharpButton(ActionsOverlay, text, UDim2.new(0.9, 0, 0, 16), Enum.Font.GothamBlack, 8)
 					obtn.ZIndex = 11; return obtn
 				end
 
 				local equipBtn = MakeOverlayBtn("EQUIP")
 				local sellBtn = MakeOverlayBtn("SELL 1x")
+				local lockBtn = MakeOverlayBtn(isLocked and "UNLOCK" or "LOCK")
+
+				if isLocked then
+					lockBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+					sellBtn.Visible = false
+				else
+					lockBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+				end
 
 				if item.Data.Type ~= nil then 
 					local isEq = (player:GetAttribute("EquippedWeapon") == item.Name) or (player:GetAttribute("EquippedAccessory") == item.Name)
@@ -492,6 +538,7 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 				else equipBtn.Visible = false end
 
 				sellBtn.MouseButton1Click:Connect(function() buttonConsumed = true; Network.SellItem:FireServer(item.Name, false); ActionsOverlay.Visible = false end)
+				lockBtn.MouseButton1Click:Connect(function() buttonConsumed = true; Network:WaitForChild("ToggleLock"):FireServer(item.Name); ActionsOverlay.Visible = false end)
 
 				local function CloseAllOverlays()
 					for _, c in ipairs(InvGrid:GetChildren()) do if c.Name == "ItemCard" then local ov = c:FindFirstChild("ActionsOverlay"); if ov then ov.Visible = false end end end
