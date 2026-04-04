@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: SupplyForgeTab
 local SupplyForgeTab = {}
 
@@ -10,6 +9,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local Network = ReplicatedStorage:WaitForChild("Network")
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
+local TitanData = require(ReplicatedStorage:WaitForChild("TitanData")) -- [[ THE FIX: Added TitanData! ]]
 
 local player = Players.LocalPlayer
 
@@ -365,9 +365,8 @@ function SupplyForgeTab.Initialize(parentFrame)
 		end
 	end
 
-	local shopUpdateThread
+	local isShopTimerActive = false
 	local function RefreshShop()
-		if shopUpdateThread then task.cancel(shopUpdateThread) end
 		local shopData = Network:WaitForChild("GetShopData"):InvokeServer()
 		if not shopData or not shopData.Items then return end
 
@@ -379,14 +378,19 @@ function SupplyForgeTab.Initialize(parentFrame)
 		end
 
 		local timeLeft = shopData.TimeLeft or 600
-		shopUpdateThread = task.spawn(function()
-			while timeLeft > 0 do
+
+		isShopTimerActive = false 
+		task.wait(1.1)
+		isShopTimerActive = true
+
+		task.spawn(function()
+			while timeLeft > 0 and isShopTimerActive do
 				local m = math.floor(timeLeft / 60)
 				local s = timeLeft % 60
 				restockTimer.Text = string.format("RESTOCKS IN: %02d:%02d", m, s)
 				task.wait(1); timeLeft -= 1
 			end
-			RefreshShop() 
+			if isShopTimerActive then RefreshShop() end
 		end)
 	end
 
@@ -499,7 +503,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 		MinigameView.Visible = false
 		InfoView.Visible = true
 
-		-- Pass quality back to server for bonus generation
 		Network:WaitForChild("ForgeAction"):FireServer("Craft", bpTitle.Text, finalQuality)
 	end
 
@@ -509,7 +512,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 		local targetCenter = 0.5
 		local dist = math.abs(cursorPos - targetCenter)
 
-		-- 0 distance = 1.0 accuracy. 0.5 distance = 0 accuracy.
 		local accuracy = math.clamp(1 - (dist / 0.15), 0, 1)
 		totalAccuracy += accuracy
 		strikes += 1
@@ -519,7 +521,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 		if strikes >= 3 then
 			EndMinigame()
 		else
-			-- Brief pause and speed up
 			mgActive = false
 			task.wait(0.5)
 			mgActive = true
@@ -527,7 +528,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 	end)
 
 	CraftBtn.MouseButton1Click:Connect(function()
-		-- Start Minigame
 		InfoView.Visible = false
 		MinigameView.Visible = true
 		strikes = 0
