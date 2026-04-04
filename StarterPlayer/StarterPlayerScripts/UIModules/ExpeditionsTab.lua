@@ -19,7 +19,7 @@ local DECALS = {
 	PvP = "rbxassetid://100826303284945", 
 	Nightmare = "rbxassetid://90132878979603",
 	WorldBoss = "rbxassetid://129655150803684",
-	Endless = "rbxassetid://108619507999123" 
+	Endless = "rbxassetid://108619507999123"
 }
 
 -- Party State
@@ -85,7 +85,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 	BackBtn.Visible = false
 
 	local Pages = {}
-	local FetchLiveMatches -- Forward declaration for PvP
+	local FetchLiveMatches 
 
 	local function ShowPage(pageName, titleText)
 		for name, frame in pairs(Pages) do
@@ -97,13 +97,8 @@ function ExpeditionsTab.Initialize(parentFrame)
 		if pageName == "PvP" and FetchLiveMatches then FetchLiveMatches() end
 	end
 
-	BackBtn.MouseButton1Click:Connect(function()
-		ShowPage("Main", "COMBAT DEPLOYMENT")
-	end)
+	BackBtn.MouseButton1Click:Connect(function() ShowPage("Main", "COMBAT DEPLOYMENT") end)
 
-	-- ==========================================
-	-- DEPLOYMENT TRANSITION SEQUENCE
-	-- ==========================================
 	local DeployOverlay = Instance.new("Frame", parentFrame.Parent) 
 	DeployOverlay.Name = "DeploymentTransition"
 	DeployOverlay.Size = UDim2.new(1, 0, 1, 0)
@@ -129,25 +124,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 		dStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
 
 		task.wait(0.8)
-
-		if payload then
-			Network:WaitForChild(remoteName):FireServer(action, payload)
-		else
-			Network:WaitForChild(remoteName):FireServer(action)
-		end
+		if payload then Network:WaitForChild(remoteName):FireServer(action, payload) else Network:WaitForChild(remoteName):FireServer(action) end
 
 		local t1 = TweenService:Create(DeployOverlay, TweenInfo.new(0.5), {BackgroundTransparency = 1})
 		local t2 = TweenService:Create(dStatus, TweenInfo.new(0.5), {TextTransparency = 1})
 		t1:Play(); t2:Play()
-
 		t1.Completed:Wait()
 		DeployOverlay.Visible = false
 		dStatus.TextColor3 = UIHelpers.Colors.Gold
 	end
 
-	-- ==========================================
-	-- DYNAMIC CARD GENERATOR
-	-- ==========================================
 	local function CreateModeCard(parent, title, desc, imageId, layoutOrder, onClick)
 		local cardBtn = Instance.new("TextButton", parent)
 		cardBtn.LayoutOrder = layoutOrder
@@ -206,32 +192,17 @@ function ExpeditionsTab.Initialize(parentFrame)
 		return lblDesc
 	end
 
-	-- ==========================================
-	-- PAGE: MAIN SELECTION
-	-- ==========================================
 	local GridContainer = Instance.new("ScrollingFrame", MissionsPanel)
-	GridContainer.Size = UDim2.new(1, 0, 1, -60)
-	GridContainer.Position = UDim2.new(0, 0, 0, 50)
-	GridContainer.BackgroundTransparency = 1
-	GridContainer.ScrollBarThickness = 6
-	GridContainer.BorderSizePixel = 0
+	GridContainer.Size = UDim2.new(1, 0, 1, -60); GridContainer.Position = UDim2.new(0, 0, 0, 50); GridContainer.BackgroundTransparency = 1; GridContainer.ScrollBarThickness = 6; GridContainer.BorderSizePixel = 0
 	Pages["Main"] = GridContainer
 
 	local gridLayout = Instance.new("UIGridLayout", GridContainer)
-	gridLayout.CellSize = UDim2.new(0.48, 0, 0, 150) 
-	gridLayout.CellPadding = UDim2.new(0.03, 0, 0, 15)
-	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	gridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		GridContainer.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 40)
-	end)
+	gridLayout.CellSize = UDim2.new(0.48, 0, 0, 150); gridLayout.CellPadding = UDim2.new(0.03, 0, 0, 15); gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	gridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() GridContainer.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 40) end)
 
 	local cPart = player:GetAttribute("CurrentPart") or 1
 	local cMiss = player:GetAttribute("CurrentMission") or 1
-	local campaignDescLbl = CreateModeCard(GridContainer, "STORY CAMPAIGN", string.format("Part %d - Mission %d\nProgress through the main storyline.", cPart, cMiss), DECALS.Campaign, 1, function() 
-		InitiateDeployment("CombatAction", "EngageStory")
-	end)
+	local campaignDescLbl = CreateModeCard(GridContainer, "STORY CAMPAIGN", string.format("Part %d - Mission %d\nProgress through the main storyline.", cPart, cMiss), DECALS.Campaign, 1, function() InitiateDeployment("CombatAction", "EngageStory") end)
 
 	player.AttributeChanged:Connect(function(attr)
 		if attr == "CurrentPart" or attr == "CurrentMission" then
@@ -239,61 +210,33 @@ function ExpeditionsTab.Initialize(parentFrame)
 		end
 	end)
 
-	CreateModeCard(GridContainer, "ENDLESS FRONTIER", "Fight infinite waves to continually harvest Dews, XP, and materials.", DECALS.Endless, 2, function() 
-		InitiateDeployment("CombatAction", "EngageEndless")
-	end)
-
+	CreateModeCard(GridContainer, "ENDLESS FRONTIER", "Fight infinite waves to continually harvest Dews, XP, and materials.", DECALS.Endless, 2, function() InitiateDeployment("CombatAction", "EngageEndless") end)
 	CreateModeCard(GridContainer, "MULTIPLAYER RAIDS", "Deploy your party to take down Colossal threats.", DECALS.Raid, 3, function() ShowPage("Raids", "MULTIPLAYER RAIDS") end)
 	CreateModeCard(GridContainer, "WORLD BOSSES", "A catastrophic threat has appeared. Intercept immediately.", DECALS.WorldBoss, 4, function() ShowPage("WorldBoss", "WORLD BOSSES") end)
 	CreateModeCard(GridContainer, "NIGHTMARE HUNTS", "Face corrupted Titans to obtain legendary Cursed Weapons.", DECALS.Nightmare, 5, function() ShowPage("Nightmare", "NIGHTMARE HUNTS") end)
 	CreateModeCard(GridContainer, "PVP ARENA", "Test your ODM combat skills against other players.", DECALS.PvP, 6, function() ShowPage("PvP", "PVP ARENA") end)
+	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send out scout regiments to gather resources over long periods.", DECALS.AFK, 7, function() ShowPage("AFK", "AFK EXPEDITIONS") end)
 
-	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send out scout regiments to gather resources over long periods.", DECALS.AFK, 7, function() 
-		ShowPage("AFK", "AFK EXPEDITIONS")
-	end)
-
-	-- ==========================================
-	-- PAGE: AFK EXPEDITIONS (INJECTED MODULE)
-	-- ==========================================
+	-- INJECT AFK MODULE
 	local AFKPage = Instance.new("Frame", MissionsPanel)
-	AFKPage.Size = UDim2.new(1, 0, 1, -60)
-	AFKPage.Position = UDim2.new(0, 0, 0, 50)
-	AFKPage.BackgroundTransparency = 1
-	AFKPage.Visible = false
+	AFKPage.Size = UDim2.new(1, 0, 1, -60); AFKPage.Position = UDim2.new(0, 0, 0, 50); AFKPage.BackgroundTransparency = 1; AFKPage.Visible = false
 	Pages["AFK"] = AFKPage
-
-	-- We initialize the module directly inside the generated page
 	AFKTab.Initialize(AFKPage, InitiateDeployment)
-
 
 	-- ==========================================
 	-- PAGE: NIGHTMARE HUNTS
 	-- ==========================================
 	local NightmarePage = Instance.new("ScrollingFrame", MissionsPanel)
-	NightmarePage.Size = UDim2.new(1, 0, 1, -60)
-	NightmarePage.Position = UDim2.new(0, 0, 0, 50)
-	NightmarePage.BackgroundTransparency = 1
-	NightmarePage.ScrollBarThickness = 6
-	NightmarePage.BorderSizePixel = 0
-	NightmarePage.Visible = false
+	NightmarePage.Size = UDim2.new(1, 0, 1, -60); NightmarePage.Position = UDim2.new(0, 0, 0, 50); NightmarePage.BackgroundTransparency = 1; NightmarePage.ScrollBarThickness = 6; NightmarePage.BorderSizePixel = 0; NightmarePage.Visible = false
 	Pages["Nightmare"] = NightmarePage
 
-	local nmLayout = Instance.new("UIGridLayout", NightmarePage)
-	nmLayout.CellSize = UDim2.new(0.31, 0, 0, 240) 
-	nmLayout.CellPadding = UDim2.new(0.02, 0, 0, 15)
-	nmLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	nmLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	nmLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		NightmarePage.CanvasSize = UDim2.new(0, 0, 0, nmLayout.AbsoluteContentSize.Y + 40)
-	end)
+	local nmLayout = Instance.new("UIGridLayout", NightmarePage); nmLayout.CellSize = UDim2.new(0.31, 0, 0, 240); nmLayout.CellPadding = UDim2.new(0.02, 0, 0, 15); nmLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; nmLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	nmLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() NightmarePage.CanvasSize = UDim2.new(0, 0, 0, nmLayout.AbsoluteContentSize.Y + 40) end)
 
 	local nIndex = 1
 	for id, boss in pairs(EnemyData.NightmareHunts or {}) do
 		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.Nightmare
-		CreateModeCard(NightmarePage, string.upper(boss.Name), boss.Desc or "Eliminate the corrupted Titan.", icon, nIndex, function()
-			InitiateDeployment("CombatAction", "EngageNightmare", {BossId = id})
-		end)
+		CreateModeCard(NightmarePage, string.upper(boss.Name), boss.Desc or "Eliminate the corrupted Titan.", icon, nIndex, function() InitiateDeployment("CombatAction", "EngageNightmare", {BossId = id}) end)
 		nIndex = nIndex + 1
 	end
 
@@ -301,30 +244,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 	-- PAGE: WORLD BOSSES
 	-- ==========================================
 	local WorldBossPage = Instance.new("ScrollingFrame", MissionsPanel)
-	WorldBossPage.Size = UDim2.new(1, 0, 1, -60)
-	WorldBossPage.Position = UDim2.new(0, 0, 0, 50)
-	WorldBossPage.BackgroundTransparency = 1
-	WorldBossPage.ScrollBarThickness = 6
-	WorldBossPage.BorderSizePixel = 0
-	WorldBossPage.Visible = false
+	WorldBossPage.Size = UDim2.new(1, 0, 1, -60); WorldBossPage.Position = UDim2.new(0, 0, 0, 50); WorldBossPage.BackgroundTransparency = 1; WorldBossPage.ScrollBarThickness = 6; WorldBossPage.BorderSizePixel = 0; WorldBossPage.Visible = false
 	Pages["WorldBoss"] = WorldBossPage
 
-	local wbLayout = Instance.new("UIGridLayout", WorldBossPage)
-	wbLayout.CellSize = UDim2.new(0.31, 0, 0, 240) 
-	wbLayout.CellPadding = UDim2.new(0.02, 0, 0, 15)
-	wbLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	wbLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	wbLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		WorldBossPage.CanvasSize = UDim2.new(0, 0, 0, wbLayout.AbsoluteContentSize.Y + 40)
-	end)
+	local wbLayout = Instance.new("UIGridLayout", WorldBossPage); wbLayout.CellSize = UDim2.new(0.31, 0, 0, 240); wbLayout.CellPadding = UDim2.new(0.02, 0, 0, 15); wbLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; wbLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	wbLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() WorldBossPage.CanvasSize = UDim2.new(0, 0, 0, wbLayout.AbsoluteContentSize.Y + 40) end)
 
 	local wIndex = 1
 	for id, boss in pairs(EnemyData.WorldBosses or {}) do
 		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.WorldBoss
-		CreateModeCard(WorldBossPage, string.upper(boss.Name), boss.Desc or "A massive threat approaches.", icon, wIndex, function()
-			InitiateDeployment("CombatAction", "EngageWorldBoss", {BossId = id})
-		end)
+		CreateModeCard(WorldBossPage, string.upper(boss.Name), boss.Desc or "A massive threat approaches.", icon, wIndex, function() InitiateDeployment("CombatAction", "EngageWorldBoss", {BossId = id}) end)
 		wIndex = wIndex + 1
 	end
 
@@ -332,48 +261,28 @@ function ExpeditionsTab.Initialize(parentFrame)
 	-- PAGE: MULTIPLAYER RAIDS
 	-- ==========================================
 	local RaidPage = Instance.new("ScrollingFrame", MissionsPanel)
-	RaidPage.Size = UDim2.new(1, 0, 1, -60)
-	RaidPage.Position = UDim2.new(0, 0, 0, 50)
-	RaidPage.BackgroundTransparency = 1
-	RaidPage.ScrollBarThickness = 6
-	RaidPage.BorderSizePixel = 0
-	RaidPage.Visible = false
+	RaidPage.Size = UDim2.new(1, 0, 1, -60); RaidPage.Position = UDim2.new(0, 0, 0, 50); RaidPage.BackgroundTransparency = 1; RaidPage.ScrollBarThickness = 6; RaidPage.BorderSizePixel = 0; RaidPage.Visible = false
 	Pages["Raids"] = RaidPage
 
-	local rLayout = Instance.new("UIGridLayout", RaidPage)
-	rLayout.CellSize = UDim2.new(0.31, 0, 0, 240) 
-	rLayout.CellPadding = UDim2.new(0.02, 0, 0, 15)
-	rLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	rLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	rLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		RaidPage.CanvasSize = UDim2.new(0, 0, 0, rLayout.AbsoluteContentSize.Y + 40)
-	end)
+	local rLayout = Instance.new("UIGridLayout", RaidPage); rLayout.CellSize = UDim2.new(0.31, 0, 0, 240); rLayout.CellPadding = UDim2.new(0.02, 0, 0, 15); rLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; rLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	rLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() RaidPage.CanvasSize = UDim2.new(0, 0, 0, rLayout.AbsoluteContentSize.Y + 40) end)
 
 	local raidList = {}
-	for id, boss in pairs(EnemyData.RaidBosses or {}) do
-		table.insert(raidList, {Id = id, Data = boss})
-	end
+	for id, boss in pairs(EnemyData.RaidBosses or {}) do table.insert(raidList, {Id = id, Data = boss}) end
 	table.sort(raidList, function(a, b) return a.Id < b.Id end)
 
 	for i, rInfo in ipairs(raidList) do
 		local id = rInfo.Id
 		local boss = rInfo.Data
 		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.Raid
-
-		CreateModeCard(RaidPage, string.upper(boss.Name), "Requires a Party. Coordinate strikes and manage aggro.", icon, i, function()
-			InitiateDeployment("RaidAction", "DeployParty", {RaidId = id})
-		end)
+		CreateModeCard(RaidPage, string.upper(boss.Name), "Requires a Party. Coordinate strikes and manage aggro.", icon, i, function() InitiateDeployment("RaidAction", "DeployParty", {RaidId = id}) end)
 	end
 
 	-- ==========================================
 	-- PAGE: PVP ARENA
 	-- ==========================================
 	local PvPPage = Instance.new("Frame", MissionsPanel)
-	PvPPage.Size = UDim2.new(1, 0, 1, -60)
-	PvPPage.Position = UDim2.new(0, 0, 0, 50)
-	PvPPage.BackgroundTransparency = 1
-	PvPPage.Visible = false
+	PvPPage.Size = UDim2.new(1, 0, 1, -60); PvPPage.Position = UDim2.new(0, 0, 0, 50); PvPPage.BackgroundTransparency = 1; PvPPage.Visible = false
 	Pages["PvP"] = PvPPage
 
 	local PvPQueuePanel = Instance.new("Frame", PvPPage)
@@ -387,48 +296,34 @@ function ExpeditionsTab.Initialize(parentFrame)
 	pqDesc.Position = UDim2.new(0, 0, 0, 50)
 
 	local QueueBtn = CreateSharpButton(PvPQueuePanel, "ENTER QUEUE", UDim2.new(0, 200, 0, 40), Enum.Font.GothamBlack, 16)
-	QueueBtn.Position = UDim2.new(0.5, 0, 0, 90)
-	QueueBtn.AnchorPoint = Vector2.new(0.5, 0)
+	QueueBtn.Position = UDim2.new(0.5, 0, 0, 90); QueueBtn.AnchorPoint = Vector2.new(0.5, 0)
 	local inQueue = false
 
 	QueueBtn.MouseButton1Click:Connect(function()
 		inQueue = not inQueue
 		if inQueue then
-			QueueBtn.Text = "LEAVE QUEUE"
-			QueueBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+			QueueBtn.Text = "LEAVE QUEUE"; QueueBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
 			Network:WaitForChild("PvPAction"):FireServer("JoinQueue")
 		else
-			QueueBtn.Text = "ENTER QUEUE"
-			QueueBtn.TextColor3 = UIHelpers.Colors.TextWhite
+			QueueBtn.Text = "ENTER QUEUE"; QueueBtn.TextColor3 = UIHelpers.Colors.TextWhite
 			Network:WaitForChild("PvPAction"):FireServer("LeaveQueue")
 		end
 	end)
 
 	local PvPMatchesTitle = UIHelpers.CreateLabel(PvPPage, "ACTIVE SPECTATOR MATCHES", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 18)
-	PvPMatchesTitle.Position = UDim2.new(0, 0, 0, 170)
-	PvPMatchesTitle.TextXAlignment = Enum.TextXAlignment.Left
+	PvPMatchesTitle.Position = UDim2.new(0, 0, 0, 170); PvPMatchesTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 	local RefreshBtn = CreateSharpButton(PvPPage, "REFRESH", UDim2.new(0, 80, 0, 24), Enum.Font.GothamBold, 11)
-	RefreshBtn.Position = UDim2.new(1, 0, 0, 173)
-	RefreshBtn.AnchorPoint = Vector2.new(1, 0)
+	RefreshBtn.Position = UDim2.new(1, 0, 0, 173); RefreshBtn.AnchorPoint = Vector2.new(1, 0)
 
 	local SpectateScroll = Instance.new("ScrollingFrame", PvPPage)
-	SpectateScroll.Size = UDim2.new(1, 0, 1, -210)
-	SpectateScroll.Position = UDim2.new(0, 0, 0, 210)
-	SpectateScroll.BackgroundTransparency = 1
-	SpectateScroll.ScrollBarThickness = 6
-	SpectateScroll.BorderSizePixel = 0
+	SpectateScroll.Size = UDim2.new(1, 0, 1, -210); SpectateScroll.Position = UDim2.new(0, 0, 0, 210); SpectateScroll.BackgroundTransparency = 1; SpectateScroll.ScrollBarThickness = 6; SpectateScroll.BorderSizePixel = 0
 
-	local specLayout = Instance.new("UIListLayout", SpectateScroll)
-	specLayout.Padding = UDim.new(0, 10)
-	specLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	specLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		SpectateScroll.CanvasSize = UDim2.new(0, 0, 0, specLayout.AbsoluteContentSize.Y + 20)
-	end)
+	local specLayout = Instance.new("UIListLayout", SpectateScroll); specLayout.Padding = UDim.new(0, 10); specLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	specLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SpectateScroll.CanvasSize = UDim2.new(0, 0, 0, specLayout.AbsoluteContentSize.Y + 20) end)
 
 	FetchLiveMatches = function()
 		for _, c in ipairs(SpectateScroll:GetChildren()) do if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end end
-
 		local loadingLbl = UIHelpers.CreateLabel(SpectateScroll, "Scanning for live matches...", UDim2.new(1, 0, 0, 50), Enum.Font.GothamBold, UIHelpers.Colors.Gold, 14)
 
 		task.spawn(function()
@@ -442,153 +337,83 @@ function ExpeditionsTab.Initialize(parentFrame)
 
 			for _, matchData in ipairs(matches) do
 				local mCard = Instance.new("Frame", SpectateScroll)
-				mCard.Size = UDim2.new(1, -10, 0, 60)
-				mCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-				Instance.new("UIStroke", mCard).Color = UIHelpers.Colors.BorderMuted
+				mCard.Size = UDim2.new(1, -10, 0, 60); mCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UIStroke", mCard).Color = UIHelpers.Colors.BorderMuted
 
 				local vsLbl = UIHelpers.CreateLabel(mCard, (matchData.Player1 or "Fighter") .. "  VS  " .. (matchData.Player2 or "Fighter"), UDim2.new(0.6, 0, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 16)
 				vsLbl.Position = UDim2.new(0, 15, 0, 0); vsLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 				local specBtn = CreateSharpButton(mCard, "SPECTATE", UDim2.new(0, 120, 0, 36), Enum.Font.GothamBlack, 12)
-				specBtn.Position = UDim2.new(1, -15, 0.5, 0); specBtn.AnchorPoint = Vector2.new(1, 0.5)
-				specBtn.TextColor3 = UIHelpers.Colors.Gold
+				specBtn.Position = UDim2.new(1, -15, 0.5, 0); specBtn.AnchorPoint = Vector2.new(1, 0.5); specBtn.TextColor3 = UIHelpers.Colors.Gold
 
-				specBtn.MouseButton1Click:Connect(function()
-					Network:WaitForChild("PvPAction"):FireServer("SpectateMatch", matchData.MatchId)
-				end)
+				specBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PvPAction"):FireServer("SpectateMatch", matchData.MatchId) end)
 			end
 		end)
 	end
-
 	RefreshBtn.MouseButton1Click:Connect(FetchLiveMatches)
-
 
 	-- ==========================================
 	-- RIGHT PANEL: PARTY SYSTEM 
 	-- ==========================================
 	local PartyPanel = Instance.new("Frame", parentFrame)
-	PartyPanel.Size = UDim2.new(0.28, 0, 1, -20)
-	PartyPanel.Position = UDim2.new(0, 0, 0, 10)
-	PartyPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-	PartyPanel.LayoutOrder = 2
-	local pStroke = Instance.new("UIStroke", PartyPanel)
-	pStroke.Color = UIHelpers.Colors.BorderMuted
-	pStroke.Thickness = 2
+	PartyPanel.Size = UDim2.new(0.28, 0, 1, -20); PartyPanel.Position = UDim2.new(0, 0, 0, 10); PartyPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18); PartyPanel.LayoutOrder = 2
+	local pStroke = Instance.new("UIStroke", PartyPanel); pStroke.Color = UIHelpers.Colors.BorderMuted; pStroke.Thickness = 2
 
 	local PartyContent = Instance.new("Frame", PartyPanel)
-	PartyContent.Size = UDim2.new(1, -30, 1, -30)
-	PartyContent.Position = UDim2.new(0, 15, 0, 15)
-	PartyContent.BackgroundTransparency = 1
+	PartyContent.Size = UDim2.new(1, -30, 1, -30); PartyContent.Position = UDim2.new(0, 15, 0, 15); PartyContent.BackgroundTransparency = 1
 
 	local function RenderPartyUI()
 		for _, child in ipairs(PartyContent:GetChildren()) do child:Destroy() end
 
-		local pLayout = Instance.new("UIListLayout", PartyContent)
-		pLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		pLayout.Padding = UDim.new(0, 15)
-		pLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		local pLayout = Instance.new("UIListLayout", PartyContent); pLayout.SortOrder = Enum.SortOrder.LayoutOrder; pLayout.Padding = UDim.new(0, 15); pLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 		if IsInParty then
 			local Header = UIHelpers.CreateLabel(PartyContent, "STRIKE TEAM (" .. #CurrentParty .. "/3)", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 18)
 			Header.LayoutOrder = 1; Header.TextXAlignment = Enum.TextXAlignment.Left
 
-			local RosterFrame = Instance.new("Frame", PartyContent)
-			RosterFrame.Size = UDim2.new(1, 0, 0, #CurrentParty * 50)
-			RosterFrame.BackgroundTransparency = 1
-			RosterFrame.LayoutOrder = 2
+			local RosterFrame = Instance.new("Frame", PartyContent); RosterFrame.Size = UDim2.new(1, 0, 0, #CurrentParty * 50); RosterFrame.BackgroundTransparency = 1; RosterFrame.LayoutOrder = 2
 			local rLayout = Instance.new("UIListLayout", RosterFrame); rLayout.Padding = UDim.new(0, 8)
 
 			for _, member in ipairs(CurrentParty) do
-				local mCard = Instance.new("Frame", RosterFrame)
-				mCard.Size = UDim2.new(1, 0, 0, 42)
-				mCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+				local mCard = Instance.new("Frame", RosterFrame); mCard.Size = UDim2.new(1, 0, 0, 42); mCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 				local mStroke = Instance.new("UIStroke", mCard); mStroke.Color = UIHelpers.Colors.BorderMuted
-
 				local mName = UIHelpers.CreateLabel(mCard, member.Name, UDim2.new(1, -45, 1, 0), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 14)
 				mName.Position = UDim2.new(0, 15, 0, 0); mName.TextXAlignment = Enum.TextXAlignment.Left
 
 				if member.IsLeader then
-					local crown = UIHelpers.CreateLabel(mCard, "👑", UDim2.new(0, 30, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 16)
-					crown.Position = UDim2.new(1, -35, 0, 0)
+					local crown = UIHelpers.CreateLabel(mCard, "👑", UDim2.new(0, 30, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 16); crown.Position = UDim2.new(1, -35, 0, 0)
 				end
 			end
 
 			if IsPartyLeader then
-				local InviteContainer = Instance.new("Frame", PartyContent)
-				InviteContainer.Size = UDim2.new(1, 0, 0, 80)
-				InviteContainer.BackgroundTransparency = 1
-				InviteContainer.LayoutOrder = 3
+				local InviteContainer = Instance.new("Frame", PartyContent); InviteContainer.Size = UDim2.new(1, 0, 0, 80); InviteContainer.BackgroundTransparency = 1; InviteContainer.LayoutOrder = 3
+				local invHeader = UIHelpers.CreateLabel(InviteContainer, "INVITE PLAYER", UDim2.new(1, 0, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 12); invHeader.TextXAlignment = Enum.TextXAlignment.Left
+				local NameInput = Instance.new("TextBox", InviteContainer); NameInput.Size = UDim2.new(1, 0, 0, 35); NameInput.Position = UDim2.new(0, 0, 0, 25); NameInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25); NameInput.TextColor3 = UIHelpers.Colors.TextWhite; NameInput.Font = Enum.Font.GothamMedium; NameInput.TextSize = 14; NameInput.PlaceholderText = "Enter Username..."; NameInput.Text = ""
+				Instance.new("UIStroke", NameInput).Color = UIHelpers.Colors.BorderMuted
 
-				local invHeader = UIHelpers.CreateLabel(InviteContainer, "INVITE PLAYER", UDim2.new(1, 0, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 12)
-				invHeader.TextXAlignment = Enum.TextXAlignment.Left
-
-				local NameInput = Instance.new("TextBox", InviteContainer)
-				NameInput.Size = UDim2.new(1, 0, 0, 35)
-				NameInput.Position = UDim2.new(0, 0, 0, 25)
-				NameInput.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-				NameInput.TextColor3 = UIHelpers.Colors.TextWhite
-				NameInput.Font = Enum.Font.GothamMedium
-				NameInput.TextSize = 14
-				NameInput.PlaceholderText = "Enter Username..."
-				NameInput.Text = ""
-				local inStroke = Instance.new("UIStroke", NameInput); inStroke.Color = UIHelpers.Colors.BorderMuted
-
-				local InvBtn = CreateSharpButton(InviteContainer, "SEND", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, 12)
-				InvBtn.Position = UDim2.new(0, 0, 0, 65)
-				InvBtn.MouseButton1Click:Connect(function()
-					if NameInput.Text ~= "" then
-						Network:WaitForChild("PartyAction"):FireServer("Invite", NameInput.Text)
-						NameInput.Text = ""
-					end
-				end)
+				local InvBtn = CreateSharpButton(InviteContainer, "SEND", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, 12); InvBtn.Position = UDim2.new(0, 0, 0, 65)
+				InvBtn.MouseButton1Click:Connect(function() if NameInput.Text ~= "" then Network:WaitForChild("PartyAction"):FireServer("Invite", NameInput.Text); NameInput.Text = "" end end)
 			end
 
-			local LeaveBtn = CreateSharpButton(PartyContent, "LEAVE TEAM", UDim2.new(1, 0, 0, 35), Enum.Font.GothamBlack, 14)
-			LeaveBtn.LayoutOrder = 4
-			LeaveBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+			local LeaveBtn = CreateSharpButton(PartyContent, "LEAVE TEAM", UDim2.new(1, 0, 0, 35), Enum.Font.GothamBlack, 14); LeaveBtn.LayoutOrder = 4; LeaveBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
 			LeaveBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PartyAction"):FireServer("Leave") end)
 
 		else
-			local Header = UIHelpers.CreateLabel(PartyContent, "SOLO DEPLOYMENT", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextMuted, 18)
-			Header.LayoutOrder = 1; Header.TextXAlignment = Enum.TextXAlignment.Left
-
-			local CreateBtn = CreateSharpButton(PartyContent, "CREATE STRIKE TEAM", UDim2.new(1, 0, 0, 40), Enum.Font.GothamBlack, 14)
-			CreateBtn.LayoutOrder = 2
+			local Header = UIHelpers.CreateLabel(PartyContent, "SOLO DEPLOYMENT", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextMuted, 18); Header.LayoutOrder = 1; Header.TextXAlignment = Enum.TextXAlignment.Left
+			local CreateBtn = CreateSharpButton(PartyContent, "CREATE STRIKE TEAM", UDim2.new(1, 0, 0, 40), Enum.Font.GothamBlack, 14); CreateBtn.LayoutOrder = 2
 			CreateBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PartyAction"):FireServer("Create") end)
 
-			local inviteCount = 0
-			for k, v in pairs(PendingInvites) do inviteCount = inviteCount + 1 end
-
+			local inviteCount = 0; for k, v in pairs(PendingInvites) do inviteCount = inviteCount + 1 end
 			if inviteCount > 0 then
-				local invHeader = UIHelpers.CreateLabel(PartyContent, "INCOMING INVITES", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBold, UIHelpers.Colors.Gold, 12)
-				invHeader.LayoutOrder = 3; invHeader.TextXAlignment = Enum.TextXAlignment.Left
-
-				local InvList = Instance.new("ScrollingFrame", PartyContent)
-				InvList.Size = UDim2.new(1, 0, 1, -130)
-				InvList.BackgroundTransparency = 1
-				InvList.ScrollBarThickness = 4
-				InvList.BorderSizePixel = 0
-				InvList.LayoutOrder = 4
+				local invHeader = UIHelpers.CreateLabel(PartyContent, "INCOMING INVITES", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBold, UIHelpers.Colors.Gold, 12); invHeader.LayoutOrder = 3; invHeader.TextXAlignment = Enum.TextXAlignment.Left
+				local InvList = Instance.new("ScrollingFrame", PartyContent); InvList.Size = UDim2.new(1, 0, 1, -130); InvList.BackgroundTransparency = 1; InvList.ScrollBarThickness = 4; InvList.BorderSizePixel = 0; InvList.LayoutOrder = 4
 				local ilLayout = Instance.new("UIListLayout", InvList); ilLayout.Padding = UDim.new(0, 8)
 
 				for inviterName, _ in pairs(PendingInvites) do
-					local iCard = Instance.new("Frame", InvList)
-					iCard.Size = UDim2.new(1, 0, 0, 40)
-					iCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-					Instance.new("UIStroke", iCard).Color = UIHelpers.Colors.BorderMuted
+					local iCard = Instance.new("Frame", InvList); iCard.Size = UDim2.new(1, 0, 0, 40); iCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Instance.new("UIStroke", iCard).Color = UIHelpers.Colors.BorderMuted
+					local iName = UIHelpers.CreateLabel(iCard, inviterName, UDim2.new(0.6, 0, 1, 0), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 12); iName.Position = UDim2.new(0, 10, 0, 0); iName.TextXAlignment = Enum.TextXAlignment.Left
 
-					local iName = UIHelpers.CreateLabel(iCard, inviterName, UDim2.new(0.6, 0, 1, 0), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 12)
-					iName.Position = UDim2.new(0, 10, 0, 0); iName.TextXAlignment = Enum.TextXAlignment.Left
-
-					local accBtn = CreateSharpButton(iCard, "JOIN", UDim2.new(0.35, 0, 0, 26), Enum.Font.GothamBlack, 10)
-					accBtn.Position = UDim2.new(1, -5, 0.5, 0); accBtn.AnchorPoint = Vector2.new(1, 0.5)
-					accBtn.TextColor3 = UIHelpers.Colors.Gold
-
-					accBtn.MouseButton1Click:Connect(function()
-						Network:WaitForChild("PartyAction"):FireServer("AcceptInvite", inviterName)
-						PendingInvites[inviterName] = nil
-						RenderPartyUI()
-					end)
+					local accBtn = CreateSharpButton(iCard, "JOIN", UDim2.new(0.35, 0, 0, 26), Enum.Font.GothamBlack, 10); accBtn.Position = UDim2.new(1, -5, 0.5, 0); accBtn.AnchorPoint = Vector2.new(1, 0.5); accBtn.TextColor3 = UIHelpers.Colors.Gold
+					accBtn.MouseButton1Click:Connect(function() Network:WaitForChild("PartyAction"):FireServer("AcceptInvite", inviterName); PendingInvites[inviterName] = nil; RenderPartyUI() end)
 				end
 			end
 		end
@@ -599,26 +424,13 @@ function ExpeditionsTab.Initialize(parentFrame)
 		local PartyUpdate = Network:WaitForChild("PartyUpdate")
 		PartyUpdate.OnClientEvent:Connect(function(action, data)
 			if action == "UpdateList" then
-				IsInParty = true
-				CurrentParty = data
-				IsPartyLeader = false
-				for _, mem in ipairs(CurrentParty) do
-					if mem.UserId == player.UserId and mem.IsLeader then IsPartyLeader = true end
-				end
-				PendingInvites = {} 
-				RenderPartyUI()
-			elseif action == "IncomingInvite" then
-				PendingInvites[data] = true
-				RenderPartyUI()
-			elseif action == "Disbanded" then
-				IsInParty = false
-				CurrentParty = {}
-				IsPartyLeader = false
-				RenderPartyUI()
-			end
+				IsInParty = true; CurrentParty = data; IsPartyLeader = false
+				for _, mem in ipairs(CurrentParty) do if mem.UserId == player.UserId and mem.IsLeader then IsPartyLeader = true end end
+				PendingInvites = {}; RenderPartyUI()
+			elseif action == "IncomingInvite" then PendingInvites[data] = true; RenderPartyUI()
+			elseif action == "Disbanded" then IsInParty = false; CurrentParty = {}; IsPartyLeader = false; RenderPartyUI() end
 		end)
 	end
-
 	RenderPartyUI()
 end
 
