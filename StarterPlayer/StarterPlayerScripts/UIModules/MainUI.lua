@@ -30,7 +30,7 @@ local function BuildEnvironment(onComplete)
 	local Texture = Instance.new("ImageLabel", BGFrame)
 	Texture.Size = UDim2.new(1, 0, 1, 0)
 	Texture.BackgroundTransparency = 1
-	Texture.Image = "rbxassetid://125800917140688" -- Replace with your dark background image ID
+	Texture.Image = "rbxassetid://13467475151" -- Your dark background image ID
 	Texture.ImageTransparency = 0.50
 	Texture.ScaleType = Enum.ScaleType.Crop -- Forces it to spread across the entire background
 	Texture.ZIndex = -9
@@ -203,7 +203,7 @@ local function BuildMasterWindow()
 		clTitle.Position = UDim2.new(0, 10, 0, 10)
 		clTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-		local clText = UIHelpers.CreateLabel(ChangeLogBox, "<b>v1.5.0 - The Global Update</b>\n\n• Added Strike Squads & Global Leaderboards.\n• Overhauled Market & Forge UI.\n• New Active Forging Minigame.\n\n<b>ACTIVE CODES:</b>\n[MULTIPLAYERPART2]\n[NIGHTMAREMODE]\n[BUGFIX]", UDim2.new(1, -20, 1, -50), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 14)
+		local clText = UIHelpers.CreateLabel(ChangeLogBox, "<b>v1.5.0 - The Global Update</b>\n\n• Added Strike Squads & Global Leaderboards.\n• Overhauled Market & Forge UI.\n• New Active Forging Minigame.\n• New Combat Interface Overlay.\n\n<b>ACTIVE CODES:</b>\n[MULTIPLAYERPART2]\n[NIGHTMAREMODE]\n[BUGFIX]", UDim2.new(1, -20, 1, -50), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 14)
 		clText.Position = UDim2.new(0, 10, 0, 45)
 		clText.TextXAlignment = Enum.TextXAlignment.Left
 		clText.TextYAlignment = Enum.TextYAlignment.Top
@@ -440,6 +440,12 @@ function MainUI.Initialize(masterScreenGui)
 	BuildEnvironment()
 	BuildMasterWindow()
 	BuildBottomBar()
+
+	-- [[ INJECT COMBAT OVERLAY SYSTEM ]]
+	task.spawn(function()
+		local CombatMod = require(script.Parent:WaitForChild("CombatUI"))
+		if CombatMod.Initialize then CombatMod.Initialize(MasterGui) end
+	end)
 
 	-- Pop open the Home Tab automatically as soon as the UI loads
 	OpenMasterTab("HOME", "COMMAND CENTER")
