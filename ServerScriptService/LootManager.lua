@@ -1,6 +1,4 @@
 -- @ScriptType: ModuleScript
-
--- @ScriptType: ModuleScript
 -- @ScriptType: ModuleScript
 local LootManager = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,7 +21,8 @@ end
 
 function LootManager.ProcessDrops(player, enemyDrops, isEndless, currentWave)
 	local droppedItems = {}
-	local autoSoldDews = 0
+	local autoSoldDewsCapacity = 0
+	local autoSoldDewsSettings = 0
 	local currentSlots = GetUniqueSlotCount(player)
 	local dropMultiplier = player:GetAttribute("HasDoubleDrops") and 2 or 1
 
@@ -55,9 +54,14 @@ function LootManager.ProcessDrops(player, enemyDrops, isEndless, currentWave)
 			if roll <= finalChance then
 				local attrName = itemName:gsub("[^%w]", "") .. "Count"
 				local currentAmt = player:GetAttribute(attrName) or 0
+				local isAutoSellEnabled = player:GetAttribute("AutoSell_" .. rarity)
 
-				if currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
-					autoSoldDews += (SellValues[rarity] or 10) * dropMultiplier
+				if isAutoSellEnabled then
+					-- Directly sell based on user preference
+					autoSoldDewsSettings += (SellValues[rarity] or 10) * dropMultiplier
+				elseif currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
+					-- Forced sell because they hit 50/50 unique items
+					autoSoldDewsCapacity += (SellValues[rarity] or 10) * dropMultiplier
 				else
 					local nameTag = (dropMultiplier > 1) and (itemName .. " (x" .. dropMultiplier .. ")") or itemName
 					table.insert(droppedItems, nameTag)
@@ -67,8 +71,7 @@ function LootManager.ProcessDrops(player, enemyDrops, isEndless, currentWave)
 			end
 		end
 
-		-- Pity System for Endless Mode
-		if isEndless and #droppedItems == 0 and autoSoldDews == 0 and currentWave % 3 == 0 then
+		if isEndless and #droppedItems == 0 and autoSoldDewsCapacity == 0 and autoSoldDewsSettings == 0 and currentWave % 3 == 0 then
 			local pool = {}
 			for iname, _ in pairs(enemyDrops.ItemChance) do 
 				local iData = ItemData.Equipment[iname] or ItemData.Consumables[iname]
@@ -80,10 +83,14 @@ function LootManager.ProcessDrops(player, enemyDrops, isEndless, currentWave)
 				local pItem = pool[math.random(1, #pool)]
 				local attrName = pItem:gsub("[^%w]", "") .. "Count"
 				local currentAmt = player:GetAttribute(attrName) or 0
+				local iData = ItemData.Equipment[pItem] or ItemData.Consumables[pItem]
+				local rarity = iData and iData.Rarity or "Common"
+				local isAutoSellEnabled = player:GetAttribute("AutoSell_" .. rarity)
 
-				if currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
-					local iData = ItemData.Equipment[pItem] or ItemData.Consumables[pItem]
-					autoSoldDews += (SellValues[iData and iData.Rarity or "Common"] or 10) * dropMultiplier
+				if isAutoSellEnabled then
+					autoSoldDewsSettings += (SellValues[rarity] or 10) * dropMultiplier
+				elseif currentAmt == 0 and currentSlots >= MAX_INVENTORY_CAPACITY then
+					autoSoldDewsCapacity += (SellValues[rarity] or 10) * dropMultiplier
 				else
 					local nameTag = (dropMultiplier > 1) and (pItem .. " (x" .. dropMultiplier .. ")") or pItem
 					table.insert(droppedItems, nameTag)
@@ -93,12 +100,21 @@ function LootManager.ProcessDrops(player, enemyDrops, isEndless, currentWave)
 		end
 	end
 
-	-- Apply Auto-Sold Dews
-	if autoSoldDews > 0 then
-		player.leaderstats.Dews.Value += autoSoldDews
+	-- [[ THE FIX: Safely separate auto-sell sources ]]
+	if autoSoldDewsSettings > 0 then
+		player.leaderstats.Dews.Value += autoSoldDewsSettings
+		local NotificationEvent = Network:FindFirstChild("NotificationEvent")
+		if NotificationEvent then
+			NotificationEvent:FireClient(player, "Auto-Sold dropped items for " .. autoSoldDewsSettings .. " Dews!", "Success")
+		end
 	end
 
-	return droppedItems, autoSoldDews
+	if autoSoldDewsCapacity > 0 then
+		player.leaderstats.Dews.Value += autoSoldDewsCapacity
+	end
+
+	-- We only return Capacity Dews, so CombatManager only prints the "Inventory Full" text if it was ACTUALLY full.
+	return droppedItems, autoSoldDewsCapacity
 end
 
 return LootManager
