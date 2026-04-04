@@ -12,7 +12,7 @@ local function GetSetBonus(playerObj)
 	local acc = playerObj:GetAttribute("EquippedAccessory")
 	if not wpn or not acc then return nil end
 
-	for setName, setData in pairs(ItemData.Sets or {}) do
+	for _, setData in pairs(ItemData.Sets or {}) do
 		if setData.Pieces.Weapon == wpn and setData.Pieces.Accessory == acc then
 			return setData.Bonus
 		end
@@ -76,12 +76,15 @@ function CombatCore.TickStatuses(combatant)
 end
 
 function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
+	-- 1. BASE STATS
 	local atkStrength = math.max(1, tonumber(attacker.TotalStrength) or 10)
 	local defArmor = math.max(1, tonumber(defender.TotalDefense) or 10)
 
 	local atkBuff = 1.0
 	local defBuff = 1.0
+	local armorPen = 0
 
+	-- 2. TEMPORARY STATUS EFFECTS
 	if attacker.Statuses then
 		if (tonumber(attacker.Statuses.Buff_Strength) or 0) > 0 then atkBuff = atkBuff * 1.5 end
 		if (tonumber(attacker.Statuses.Weakened) or 0) > 0 then atkBuff = atkBuff * 0.5 end
@@ -93,6 +96,7 @@ function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
 		if (tonumber(defender.Statuses.Debuff_Defense) or 0) > 0 then defBuff = defBuff * 0.5 end
 	end
 
+	-- 3. TITAN TRANSFORMATION BONUSES
 	local isAttackerTransformed = attacker.Statuses and (tonumber(attacker.Statuses.Transformed) or 0) > 0
 	local isDefenderTransformed = defender.Statuses and (tonumber(defender.Statuses.Transformed) or 0) > 0
 
@@ -105,24 +109,26 @@ function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
 		defBuff = defBuff * (1.0 + (titanHardening / 35.0))
 	end
 
-	local armorPen = 0
-
+	-- 4. PLAYER-SPECIFIC MULTIPLIERS (Clans, Sets, Prestige, Awakened/Paths)
 	if attacker.IsPlayer then
+		-- Clan Lineages
 		local aStats = ClanData.GetClanStats(attacker.Clan, string.find(tostring(attacker.Clan or ""), "Awakened"), attacker.Titan, isAttackerTransformed)
 		atkBuff = atkBuff * aStats.DmgMult
 
+		-- Item Sets
 		local setBonus = GetSetBonus(attacker.PlayerObj)
 		if setBonus then
 			if setBonus.DmgMult then atkBuff = atkBuff * setBonus.DmgMult end
 			if setBonus.IgnoreArmor then armorPen = armorPen + setBonus.IgnoreArmor end
 		end
 
+		-- Consumable Buffs
 		local expiry = attacker.PlayerObj and tonumber(attacker.PlayerObj:GetAttribute("Buff_Damage_Expiry")) or 0
 		if expiry > os.time() then atkBuff = atkBuff * 1.5 end
 
+		-- Prestige Nodes
 		local prestigeDmg = tonumber(attacker.PlayerObj:GetAttribute("Prestige_DmgMult")) or 0
 		atkBuff = atkBuff * (1.0 + prestigeDmg)
-
 		armorPen = armorPen + (tonumber(attacker.PlayerObj:GetAttribute("Prestige_IgnoreArmor")) or 0)
 	end
 
@@ -131,33 +137,46 @@ function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
 		defBuff = defBuff * dStats.ArmorMult
 	end
 
+	-- 5. AWAKENED WEAPONS AND PATHS NODES (Passed in from CombatManager)
 	if attacker.AwakenedStats then
 		if (tonumber(attacker.AwakenedStats.DmgMult) or 1.0) > 1.0 then atkBuff = atkBuff * tonumber(attacker.AwakenedStats.DmgMult) end
 		if (tonumber(attacker.AwakenedStats.IgnoreArmor) or 0) > 0 then armorPen = armorPen + tonumber(attacker.AwakenedStats.IgnoreArmor) end
 	end
 
+	-- 6. APPLY ARMOR PENETRATION
 	if armorPen > 0 then defBuff = defBuff * math.max(0.1, 1.0 - armorPen) end
 
+	-- 7. AGGREGATE TOTALS
 	local effectiveAttack = atkStrength * atkBuff
 	local effectiveDefense = defArmor * defBuff
 
-	-- [[ THE PERMANENT FIX: PURE RATIO EXPONENTIAL MATH ]]
-	-- Completely strips out all "hardcap fixed values" (like the old 300 / 300+Armor logic).
-	-- Scales beautifully to infinity. If Defense heavily outweighs Attack, the damage organically curves down but never hits zero.
+	-- [[ THE PERMANENT FIX: LOGARITHMIC SOFT-CAPS ]]
+	-- No matter how many multipliers a player stacks from the steps above, the exponent
+	-- gracefully curves the math to prevent infinite damage explosions and 1-shots.
+	if attacker.IsPlayer then
+		effectiveAttack = math.pow(effectiveAttack, 0.70) * 6
+	else
+		effectiveAttack = math.pow(effectiveAttack, 0.85) * 2.5
+	end
+
+	effectiveDefense = math.pow(effectiveDefense, 0.80) * 2
+
+	-- 8. PURE COMBAT RATIO
 	local statRatio = effectiveAttack / math.max(1, effectiveAttack + effectiveDefense)
-	local powerCurve = math.pow(statRatio, 1.25)
 
 	skillMult = tonumber(skillMult) or 1.0
 	local systemicMultiplier = attacker.IsPlayer and 1.5 or 0.35 
 
-	local baseDmg = effectiveAttack * powerCurve * skillMult * systemicMultiplier
+	local baseDmg = effectiveAttack * statRatio * skillMult * systemicMultiplier
 
+	-- 9. LIMB TARGETING MODIFIERS
 	targetLimb = tostring(targetLimb or "Body")
 	if targetLimb == "Nape" then
 		if defender.Statuses and (tonumber(defender.Statuses.NapeGuard) or 0) > 0 then return 1 else baseDmg = baseDmg * 1.5 end
 	elseif targetLimb == "Legs" or targetLimb == "Arms" then baseDmg = baseDmg * 0.5
 	elseif targetLimb == "Eyes" then baseDmg = baseDmg * 0.2 end
 
+	-- 10. CO-OP SYNERGY MODIFIER
 	local synergyOwner = defender.SynergyOwners and defender.SynergyOwners[targetLimb]
 	if defender.Statuses and defender.Statuses["SynergyMark_" .. targetLimb] then
 		if attacker.IsPlayer and synergyOwner ~= attacker.PlayerObj.UserId then
@@ -165,10 +184,11 @@ function CombatCore.CalculateDamage(attacker, defender, skillMult, targetLimb)
 		end
 	end
 
+	-- 11. NIGHTMARE BOSS ARMOR RESISTANCE
 	if defender.Name == "Abyssal Armored Titan" then
 		local aStyle = tostring(attacker.Style or "None")
 		if attacker.IsPlayer and not isAttackerTransformed and (aStyle == "Ultrahard Steel Blades" or aStyle == "None") then
-			baseDmg = math.pow(baseDmg, 0.65) -- Organic non-linear resistance
+			baseDmg = math.pow(baseDmg, 0.65) -- Deflects basic blade attacks
 		end
 	end
 
@@ -240,6 +260,7 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		isSequenceCombo = true; comboMult = tonumber(skill.ComboMult) or 1.5 
 	end
 
+	-- Utility Skills Handlers
 	if skill.Effect == "Block" or skillName == "Maneuver" or skillName == "Evasive Maneuver" then
 		if not attacker.Statuses then attacker.Statuses = {} end
 		local blind = tonumber(attacker.Statuses.Blinded) or 0
@@ -310,6 +331,7 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		local currentDefHP = tonumber(defender.HP) or 0
 		if currentDefHP < 1 and i > 1 then break end 
 
+		-- Dodge Calculation
 		local isDodging = false
 		if defender.Statuses then
 			if (tonumber(defender.Statuses.Dodge) or 0) > 0 then isDodging = true end
@@ -374,6 +396,7 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 
 		didHitAtAll = true
 
+		-- Crit Calculation
 		local critChance = 5 + ((atkRes - defRes) * 0.10)
 
 		if attacker.AwakenedStats and (tonumber(attacker.AwakenedStats.CritBonus) or 0) > 0 then critChance = critChance + tonumber(attacker.AwakenedStats.CritBonus) end
@@ -390,6 +413,8 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 
 		local isCrit = math.random(1, 100) <= (critChance or 0)
 		local mult = (tonumber(skill.Mult) or 1.0) * (isCrit and 1.5 or 1.0) * comboMult
+
+		-- Final Damage Call
 		local baseDmg = CombatCore.CalculateDamage(attacker, defender, mult, targetLimb)
 
 		local survivalTriggered, hitGate, gateBroken, hpDmg, gateName = CombatCore.TakeDamage(defender, baseDmg, attacker.Style)
@@ -419,6 +444,7 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 			end
 		end
 
+		-- Status Effect Applications
 		if skill.Effect and skill.Effect ~= "None" and skill.Effect ~= "Block" and skill.Effect ~= "Rest" and skill.Effect ~= "Flee" and skill.Effect ~= "Transform" and skill.Effect ~= "Eject" and skill.Effect ~= "TitanRest" and skill.Effect ~= "FallBack" and skill.Effect ~= "CloseGap" then
 			if not defender.Statuses then defender.Statuses = {} end
 			local safeEffect = tostring(skill.Effect)
