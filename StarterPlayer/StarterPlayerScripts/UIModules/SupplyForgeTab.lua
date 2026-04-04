@@ -4,12 +4,12 @@
 local SupplyForgeTab = {}
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Network = ReplicatedStorage:WaitForChild("Network")
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
-local TitanData = require(ReplicatedStorage:WaitForChild("TitanData"))
 
 local player = Players.LocalPlayer
 
@@ -73,9 +73,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 	local mPad = Instance.new("UIPadding", MainFrame)
 	mPad.PaddingTop = UDim.new(0, 15)
 
-	-- ==========================================
-	-- SUB-NAVIGATION
-	-- ==========================================
 	local SubNav = Instance.new("Frame", MainFrame)
 	SubNav.Size = UDim2.new(0.95, 0, 0, 45)
 	SubNav.BackgroundTransparency = 1
@@ -123,7 +120,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 	subBtns["MARKETPLACE"].Stroke.Color = UIHelpers.Colors.Gold
 
 	-- ==========================================
-	-- 1. MARKETPLACE & SUPPLY
+	-- 1. MARKETPLACE
 	-- ==========================================
 	local MarketTab = activeSubFrames["MARKETPLACE"]
 
@@ -139,12 +136,10 @@ function SupplyForgeTab.Initialize(parentFrame)
 	scLayout.FillDirection = Enum.FillDirection.Horizontal
 	scLayout.Padding = UDim.new(0, 20)
 
-	-- LEFT PANEL: Premium & Codes
 	local LeftPanel = Instance.new("Frame", SplitContainer)
 	LeftPanel.Size = UDim2.new(0.48, 0, 1, 0)
 	LeftPanel.BackgroundTransparency = 1
 
-	-- Premium Store
 	local PremContainer = Instance.new("Frame", LeftPanel)
 	PremContainer.Size = UDim2.new(1, 0, 0.65, 0)
 	UIHelpers.ApplyGrimPanel(PremContainer, false)
@@ -213,14 +208,12 @@ function SupplyForgeTab.Initialize(parentFrame)
 		for _, prod in ipairs(ItemData.Products) do
 			if not prod.IsReroll and not string.find(prod.Name, "Gift:") then
 				CreatePremiumCard(prod.Name, prod.Desc, 
-					function() MarketplaceService:PromptProductPurchase(player, prod.ID) end,
-					nil
+					function() MarketplaceService:PromptProductPurchase(player, prod.ID) end, nil
 				)
 			end
 		end
 	end
 
-	-- Codes Section
 	local CodeContainer = Instance.new("Frame", LeftPanel)
 	CodeContainer.Size = UDim2.new(1, 0, 0.3, 0)
 	CodeContainer.Position = UDim2.new(0, 0, 0.7, 0)
@@ -254,7 +247,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 		end
 	end)
 
-	-- RIGHT PANEL: Rotating Supply Store
 	local RightPanel = Instance.new("Frame", SplitContainer)
 	RightPanel.Size = UDim2.new(0.5, 0, 1, 0)
 	RightPanel.BackgroundTransparency = 1
@@ -289,9 +281,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 	end
 	UpdateRerollButton()
 
-	rrDews.MouseButton1Click:Connect(function() 
-		Network:WaitForChild("VIPFreeReroll"):FireServer(true) 
-	end)
+	rrDews.MouseButton1Click:Connect(function() Network:WaitForChild("VIPFreeReroll"):FireServer(true) end)
 
 	rrPremium.MouseButton1Click:Connect(function()
 		if isFreeRestock then
@@ -303,11 +293,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 					if prod.IsReroll then rerollId = prod.ID break end
 				end
 			end
-			if rerollId then 
-				MarketplaceService:PromptProductPurchase(player, rerollId) 
-			else
-				warn("[Shop] Reroll DevProduct ID missing from ItemData.Products!")
-			end
+			if rerollId then MarketplaceService:PromptProductPurchase(player, rerollId) end
 		end
 	end)
 
@@ -326,12 +312,9 @@ function SupplyForgeTab.Initialize(parentFrame)
 	ssLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() SupplyScroll.CanvasSize = UDim2.new(0,0,0, ssLayout.AbsoluteContentSize.Y + 10) end)
 
 	local RarityColors = {
-		["Common"] = Color3.fromRGB(200, 200, 200),
-		["Uncommon"] = Color3.fromRGB(85, 255, 85),
-		["Rare"] = Color3.fromRGB(85, 85, 255),
-		["Epic"] = Color3.fromRGB(170, 85, 255),
-		["Legendary"] = Color3.fromRGB(255, 215, 0),
-		["Mythical"] = Color3.fromRGB(255, 85, 85),
+		["Common"] = Color3.fromRGB(200, 200, 200), ["Uncommon"] = Color3.fromRGB(85, 255, 85),
+		["Rare"] = Color3.fromRGB(85, 85, 255), ["Epic"] = Color3.fromRGB(170, 85, 255),
+		["Legendary"] = Color3.fromRGB(255, 215, 0), ["Mythical"] = Color3.fromRGB(255, 85, 85),
 		["Transcendent"] = Color3.fromRGB(255, 85, 255)
 	}
 
@@ -350,59 +333,41 @@ function SupplyForgeTab.Initialize(parentFrame)
 		bgGlow.ZIndex = 1
 		local grad = Instance.new("UIGradient", bgGlow)
 		grad.Rotation = 90
-		grad.Transparency = NumberSequence.new{
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0.95),
-			NumberSequenceKeypoint.new(1, 0.7)
-		}
+		grad.Transparency = NumberSequence.new{ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.95), NumberSequenceKeypoint.new(1, 0.7) }
 
 		local nameLbl = UIHelpers.CreateLabel(c, itemName, UDim2.new(0.6, 0, 0, 20), Enum.Font.GothamBlack, rarityColor, 16)
-		nameLbl.Position = UDim2.new(0, 15, 0, 10); nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-		nameLbl.ZIndex = 2
+		nameLbl.Position = UDim2.new(0, 15, 0, 10); nameLbl.TextXAlignment = Enum.TextXAlignment.Left; nameLbl.ZIndex = 2
 
 		local statsTxt = ""
 		if itemData.Bonus then
 			for k, v in pairs(itemData.Bonus) do
 				local s = tostring(k):sub(1,3):upper()
-				local symb = v > 0 and "+" or ""
-				statsTxt = statsTxt .. symb .. v .. " " .. s .. " | "
+				statsTxt = statsTxt .. (v > 0 and "+" or "") .. v .. " " .. s .. " | "
 			end
 			statsTxt = statsTxt:sub(1, -3)
-		else
-			statsTxt = itemData.Desc or "A useful item."
-		end
+		else statsTxt = itemData.Desc or "A useful item." end
 
 		local statsLbl = UIHelpers.CreateLabel(c, statsTxt, UDim2.new(0.6, 0, 0, 15), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 12)
-		statsLbl.Position = UDim2.new(0, 15, 0, 30); statsLbl.TextXAlignment = Enum.TextXAlignment.Left
-		statsLbl.ZIndex = 2
+		statsLbl.Position = UDim2.new(0, 15, 0, 30); statsLbl.TextXAlignment = Enum.TextXAlignment.Left; statsLbl.ZIndex = 2
 
 		local costLbl = UIHelpers.CreateLabel(c, "Cost: " .. tostring(cost) .. " Dews", UDim2.new(0.6, 0, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 11)
-		costLbl.Position = UDim2.new(0, 15, 1, -25); costLbl.TextXAlignment = Enum.TextXAlignment.Left
-		costLbl.ZIndex = 2
+		costLbl.Position = UDim2.new(0, 15, 1, -25); costLbl.TextXAlignment = Enum.TextXAlignment.Left; costLbl.ZIndex = 2
 
 		local actionText = isSoldOut and "SOLD" or "BUY"
 		local buyBtn, buyStroke = CreateSharpButton(c, actionText, UDim2.new(0, 100, 0, 34), Enum.Font.GothamBlack, 12)
-		buyBtn.Position = UDim2.new(1, -15, 0.5, 0)
-		buyBtn.AnchorPoint = Vector2.new(1, 0.5)
-		buyBtn.ZIndex = 3
+		buyBtn.Position = UDim2.new(1, -15, 0.5, 0); buyBtn.AnchorPoint = Vector2.new(1, 0.5); buyBtn.ZIndex = 3
 
 		if isSoldOut then
-			buyBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
-			buyStroke.Color = Color3.fromRGB(70, 70, 80)
-			buyBtn.Active = false
+			buyBtn.TextColor3 = Color3.fromRGB(100, 100, 100); buyStroke.Color = Color3.fromRGB(70, 70, 80); buyBtn.Active = false
 		else
-			buyBtn.TextColor3 = Color3.fromRGB(85, 255, 85)
-			buyStroke.Color = Color3.fromRGB(85, 255, 85)
-			buyBtn.MouseButton1Click:Connect(function()
-				Network:WaitForChild("ShopAction"):FireServer("BuyItem", itemName)
-			end)
+			buyBtn.TextColor3 = Color3.fromRGB(85, 255, 85); buyStroke.Color = Color3.fromRGB(85, 255, 85)
+			buyBtn.MouseButton1Click:Connect(function() Network:WaitForChild("ShopAction"):FireServer("BuyItem", itemName) end)
 		end
 	end
 
 	local shopUpdateThread
 	local function RefreshShop()
 		if shopUpdateThread then task.cancel(shopUpdateThread) end
-
 		local shopData = Network:WaitForChild("GetShopData"):InvokeServer()
 		if not shopData or not shopData.Items then return end
 
@@ -419,8 +384,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 				local m = math.floor(timeLeft / 60)
 				local s = timeLeft % 60
 				restockTimer.Text = string.format("RESTOCKS IN: %02d:%02d", m, s)
-				task.wait(1)
-				timeLeft -= 1
+				task.wait(1); timeLeft -= 1
 			end
 			RefreshShop() 
 		end)
@@ -433,7 +397,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 	RefreshShop()
 
 	-- ==========================================
-	-- 2. THE FORGE
+	-- 2. THE FORGE (WITH ACTIVE STRIKING MINIGAME)
 	-- ==========================================
 	local ForgeTab = activeSubFrames["THE FORGE"]
 
@@ -453,28 +417,134 @@ function SupplyForgeTab.Initialize(parentFrame)
 	BlueprintPanel.AnchorPoint = Vector2.new(1, 0)
 	UIHelpers.ApplyGrimPanel(BlueprintPanel, false)
 
-	local bpTitle = UIHelpers.CreateLabel(BlueprintPanel, "SELECT A BLUEPRINT", UDim2.new(1, -40, 0, 40), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 24)
+	-- Blueprint Info View
+	local InfoView = Instance.new("Frame", BlueprintPanel)
+	InfoView.Size = UDim2.new(1, 0, 1, 0)
+	InfoView.BackgroundTransparency = 1
+
+	local bpTitle = UIHelpers.CreateLabel(InfoView, "SELECT A BLUEPRINT", UDim2.new(1, -40, 0, 40), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 24)
 	bpTitle.Position = UDim2.new(0, 20, 0, 20); bpTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-	local bpDesc = UIHelpers.CreateLabel(BlueprintPanel, "Select an item from the registry to view its crafting requirements.", UDim2.new(1, -40, 0, 40), Enum.Font.GothamMedium, UIHelpers.Colors.TextMuted, 14)
+	local bpDesc = UIHelpers.CreateLabel(InfoView, "Select an item from the registry to view its crafting requirements.", UDim2.new(1, -40, 0, 40), Enum.Font.GothamMedium, UIHelpers.Colors.TextMuted, 14)
 	bpDesc.Position = UDim2.new(0, 20, 0, 60); bpDesc.TextXAlignment = Enum.TextXAlignment.Left; bpDesc.TextWrapped = true; bpDesc.TextYAlignment = Enum.TextYAlignment.Top
 
-	local ReqTitle = UIHelpers.CreateLabel(BlueprintPanel, "REQUIRED MATERIALS", UDim2.new(1, -40, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 16)
+	local ReqTitle = UIHelpers.CreateLabel(InfoView, "REQUIRED MATERIALS", UDim2.new(1, -40, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 16)
 	ReqTitle.Position = UDim2.new(0, 20, 0, 140); ReqTitle.TextXAlignment = Enum.TextXAlignment.Left; ReqTitle.Visible = false
 
-	local ReqList = Instance.new("Frame", BlueprintPanel)
+	local ReqList = Instance.new("Frame", InfoView)
 	ReqList.Size = UDim2.new(1, -40, 0, 200)
 	ReqList.Position = UDim2.new(0, 20, 0, 170)
 	ReqList.BackgroundTransparency = 1
 	local reqLayout = Instance.new("UIListLayout", ReqList); reqLayout.Padding = UDim.new(0, 8)
 
-	local CraftBtn, CraftStroke = CreateSharpButton(BlueprintPanel, "FORGE EQUIPMENT", UDim2.new(0.8, 0, 0, 50), Enum.Font.GothamBlack, 18)
+	local CraftBtn, CraftStroke = CreateSharpButton(InfoView, "FORGE EQUIPMENT", UDim2.new(0.8, 0, 0, 50), Enum.Font.GothamBlack, 18)
 	CraftBtn.Position = UDim2.new(0.5, 0, 1, -30); CraftBtn.AnchorPoint = Vector2.new(0.5, 1); CraftBtn.Visible = false
 	CraftBtn.TextColor3 = Color3.fromRGB(225, 185, 60)
 	CraftStroke.Color = Color3.fromRGB(225, 185, 60)
 
+	-- Minigame View
+	local MinigameView = Instance.new("Frame", BlueprintPanel)
+	MinigameView.Size = UDim2.new(1, 0, 1, 0)
+	MinigameView.BackgroundTransparency = 1
+	MinigameView.Visible = false
+
+	local mgTitle = UIHelpers.CreateLabel(MinigameView, "ACTIVE FORGE", UDim2.new(1, 0, 0, 40), Enum.Font.GothamBlack, Color3.fromRGB(255, 100, 100), 24)
+	mgTitle.Position = UDim2.new(0, 0, 0, 20)
+
+	local mgInst = UIHelpers.CreateLabel(MinigameView, "Strike when the heat aligns perfectly. (0/3)", UDim2.new(1, 0, 0, 20), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 14)
+	mgInst.Position = UDim2.new(0, 0, 0, 60)
+
+	local BarContainer = Instance.new("Frame", MinigameView)
+	BarContainer.Size = UDim2.new(0.8, 0, 0, 40)
+	BarContainer.Position = UDim2.new(0.5, 0, 0.4, 0)
+	BarContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+	BarContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	local bcStroke = Instance.new("UIStroke", BarContainer); bcStroke.Color = UIHelpers.Colors.BorderMuted; bcStroke.Thickness = 2
+
+	local SweetSpot = Instance.new("Frame", BarContainer)
+	SweetSpot.Size = UDim2.new(0.15, 0, 1, 0)
+	SweetSpot.Position = UDim2.new(0.425, 0, 0, 0)
+	SweetSpot.BackgroundColor3 = Color3.fromRGB(85, 255, 85)
+	SweetSpot.BorderSizePixel = 0
+
+	local Cursor = Instance.new("Frame", BarContainer)
+	Cursor.Size = UDim2.new(0.02, 0, 1.4, 0)
+	Cursor.Position = UDim2.new(0, 0, 0.5, 0)
+	Cursor.AnchorPoint = Vector2.new(0.5, 0.5)
+	Cursor.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Cursor.BorderSizePixel = 0
+
+	local StrikeBtn, StrikeStroke = CreateSharpButton(MinigameView, "STRIKE", UDim2.new(0.5, 0, 0, 60), Enum.Font.GothamBlack, 22)
+	StrikeBtn.Position = UDim2.new(0.5, 0, 0.8, 0)
+	StrikeBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+	StrikeBtn.TextColor3 = Color3.fromRGB(255, 85, 85)
+	StrikeStroke.Color = Color3.fromRGB(255, 85, 85)
+
+	local mgActive = false
+	local mgConn = nil
+	local strikes = 0
+	local totalAccuracy = 0
+
+	local function EndMinigame()
+		mgActive = false
+		if mgConn then mgConn:Disconnect() mgConn = nil end
+
+		local finalQuality = "Standard"
+		local avg = totalAccuracy / 3
+		if avg >= 0.85 then finalQuality = "Flawless"
+		elseif avg >= 0.5 then finalQuality = "Masterwork" end
+
+		mgInst.Text = "Forge Complete! Quality: " .. finalQuality
+		task.wait(1.5)
+		MinigameView.Visible = false
+		InfoView.Visible = true
+
+		-- Pass quality back to server for bonus generation
+		Network:WaitForChild("ForgeAction"):FireServer("Craft", bpTitle.Text, finalQuality)
+	end
+
+	StrikeBtn.MouseButton1Click:Connect(function()
+		if not mgActive then return end
+		local cursorPos = Cursor.Position.X.Scale
+		local targetCenter = 0.5
+		local dist = math.abs(cursorPos - targetCenter)
+
+		-- 0 distance = 1.0 accuracy. 0.5 distance = 0 accuracy.
+		local accuracy = math.clamp(1 - (dist / 0.15), 0, 1)
+		totalAccuracy += accuracy
+		strikes += 1
+
+		mgInst.Text = "Strike when the heat aligns perfectly. (" .. strikes .. "/3)"
+
+		if strikes >= 3 then
+			EndMinigame()
+		else
+			-- Brief pause and speed up
+			mgActive = false
+			task.wait(0.5)
+			mgActive = true
+		end
+	end)
+
 	CraftBtn.MouseButton1Click:Connect(function()
-		Network:WaitForChild("ForgeAction"):FireServer("Craft", bpTitle.Text)
+		-- Start Minigame
+		InfoView.Visible = false
+		MinigameView.Visible = true
+		strikes = 0
+		totalAccuracy = 0
+		mgInst.Text = "Strike when the heat aligns perfectly. (0/3)"
+		mgActive = true
+
+		local speed = 2.5
+		local t = 0
+		if mgConn then mgConn:Disconnect() end
+		mgConn = RunService.RenderStepped:Connect(function(dt)
+			if mgActive then
+				t += dt * (speed + (strikes * 0.5))
+				local pos = (math.sin(t) + 1) / 2
+				Cursor.Position = UDim2.new(pos, 0, 0.5, 0)
+			end
+		end)
 	end)
 
 	for rec, _ in pairs(ItemData.ForgeRecipes or {}) do
@@ -501,7 +571,7 @@ function SupplyForgeTab.Initialize(parentFrame)
 	end
 
 	-- ==========================================
-	-- 3. TITAN FUSION (WITH POPUP SELECTION)
+	-- 3. TITAN FUSION
 	-- ==========================================
 	local FusionTab = activeSubFrames["TITAN FUSION"]
 
@@ -517,7 +587,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 	SlotContainer.AnchorPoint = Vector2.new(0.5, 0.5)
 	SlotContainer.BackgroundTransparency = 1
 
-	-- [[ THE FIX: Perfected the Slot Logic - Removed fake buttons, fixed hover states ]]
 	local function CreateFusionSlot(pos, titleText, colorHex, isResult)
 		local f, fStroke = CreateGrimPanel(SlotContainer)
 		f.Size = UDim2.new(0, 200, 0, 200)
@@ -582,7 +651,6 @@ function SupplyForgeTab.Initialize(parentFrame)
 	FuseBtn.TextColor3 = Color3.fromRGB(170, 85, 255)
 	FuseStroke.Color = Color3.fromRGB(170, 85, 255)
 
-	-- [[ TITAN SELECTION POPUP LOGIC ]]
 	local PopupOverlay = Instance.new("Frame", MainFrame)
 	PopupOverlay.Size = UDim2.new(1, 0, 1, 0)
 	PopupOverlay.BackgroundColor3 = Color3.new(0,0,0)
