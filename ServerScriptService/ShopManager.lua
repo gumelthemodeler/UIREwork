@@ -22,7 +22,6 @@ local PathNodes = {
 	["Path of the Breaker"] = { Stat = "IGNORE", Cost = 15, Increment = 5, MaxLevel = 5, Desc = "+5% Armor Penetration" }
 }
 
--- Removed Serums from the Paths Shop
 local RarePathsItems = {
 	{ Name = "Coordinate's Sand", Cost = 100, Desc = "Godlike power. The rarest relic in the Paths." },
 	{ Name = "Ymir's Clay Fragment", Cost = 200, Desc = "Awakens the Attack Titan into the Founding Attack Titan." },
@@ -31,14 +30,11 @@ local RarePathsItems = {
 
 local itemPool = {}
 
-for name, data in pairs(ItemData.Equipment) do 
-	if not data.IsGift then 
-		table.insert(itemPool, {Name = name, Data = data}) 
-	end
+for name, data in pairs(ItemData.Equipment or {}) do 
+	if not data.IsGift then table.insert(itemPool, {Name = name, Data = data}) end
 end
 
-for name, data in pairs(ItemData.Consumables) do 
-	-- STRICT FILTER: completely ban these keywords from the rotating shop
+for name, data in pairs(ItemData.Consumables or {}) do 
 	local lowerName = string.lower(name)
 	local isBannedFromShop = string.find(lowerName, "serum") 
 		or string.find(lowerName, "vial") 
@@ -47,9 +43,7 @@ for name, data in pairs(ItemData.Consumables) do
 		or name == "Ymir's Clay Fragment"
 		or name == "Titan Hardening Extract"
 
-	if not data.IsGift and not isBannedFromShop then 
-		table.insert(itemPool, {Name = name, Data = data}) 
-	end
+	if not data.IsGift and not isBannedFromShop then table.insert(itemPool, {Name = name, Data = data}) end
 end
 
 local function GenerateShopItems(seed)
@@ -110,10 +104,8 @@ GetShopData.OnServerInvoke = function(player, requestType)
 	local timeCycle = math.floor(os.time() / 600)
 	local savedCycle = player:GetAttribute("ShopSeedTime")
 
-	-- If it's a new 10-minute cycle, generate a new personalized seed
 	if savedCycle ~= timeCycle then
 		player:SetAttribute("ShopSeedTime", timeCycle)
-		-- Base the seed on time + their specific UserId so everyone gets a unique shop!
 		local newSeed = timeCycle + player.UserId + math.random(1, 99999)
 		player:SetAttribute("PersonalShopSeed", newSeed)
 		player:SetAttribute("ShopPurchases_Seed", newSeed)
@@ -134,11 +126,73 @@ end
 
 BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 	local targetPurchase = itemName
-	if not itemName and actionType ~= "BuyPathNode" and actionType ~= "ClosePathsShop" and actionType ~= "BuyPathsItem" then
+	if not itemName and actionType ~= "BuyPathNode" and actionType ~= "ClosePathsShop" and actionType ~= "BuyPathsItem" and actionType ~= "PromptPremium" and actionType ~= "PromptGift" then
 		targetPurchase = actionType
 	end
 
-	if actionType == "BuyPathNode" then
+	-- [[ NEW: PREMIUM ROUTING ]]
+	if actionType == "PromptPremium" then
+		local targetName = itemName
+		local targetId = nil
+		local isGamepass = false
+
+		-- Check Gamepasses first
+		if ItemData.Gamepasses then
+			for _, gp in ipairs(ItemData.Gamepasses) do
+				if string.upper(gp.Name) == string.upper(targetName) then
+					targetId = gp.ID
+					isGamepass = true
+					break
+				end
+			end
+		end
+
+		-- Check DevProducts if not found
+		if not targetId and ItemData.Products then
+			for _, prod in ipairs(ItemData.Products) do
+				if string.upper(prod.Name or prod.ItemName or "") == string.upper(targetName) then
+					targetId = prod.ID
+					break
+				end
+			end
+		end
+
+		if targetId then
+			if isGamepass then
+				MarketplaceService:PromptGamePassPurchase(player, targetId)
+			else
+				MarketplaceService:PromptProductPurchase(player, targetId)
+			end
+		else
+			NotificationEvent:FireClient(player, "Premium Item ID not configured yet.", "Error")
+			warn("[ShopManager] Could not find ID for premium item:", targetName)
+		end
+		return
+
+			-- [[ NEW: GIFT ROUTING ]]
+	elseif actionType == "PromptGift" then
+		local targetName = itemName
+		local targetId = nil
+
+		-- Gifts are ALWAYS DevProducts so they can be bought infinitely
+		if ItemData.Products then
+			for _, prod in ipairs(ItemData.Products) do
+				if prod.IsGift and string.upper(prod.TargetPass or "") == string.upper(targetName) then
+					targetId = prod.ID
+					break
+				end
+			end
+		end
+
+		if targetId then
+			MarketplaceService:PromptProductPurchase(player, targetId)
+		else
+			NotificationEvent:FireClient(player, "Gift version not configured yet.", "Error")
+			warn("[ShopManager] Could not find Gift Product ID for:", targetName)
+		end
+		return
+
+	elseif actionType == "BuyPathNode" then
 		local nodeData = PathNodes[targetPurchase]
 		if not nodeData then return end
 
@@ -189,10 +243,10 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 		return
 	end
 
+	-- Base Shop Routing
 	local timeCycle = math.floor(os.time() / 600)
 	local savedCycle = player:GetAttribute("ShopSeedTime")
 
-	-- Prevent purchasing if the shop literally just rolled over but the UI hasn't refreshed
 	if savedCycle ~= timeCycle then
 		NotificationEvent:FireClient(player, "The shop just restocked! Please wait.", "Error")
 		return
@@ -215,7 +269,6 @@ BuyAction.OnServerEvent:Connect(function(player, actionType, itemName)
 		local attrName = targetItem.Name:gsub("[^%w]", "") .. "Count"
 		local currentCount = player:GetAttribute(attrName) or 0
 
-		-- ONLY check max capacity if they don't already own the item (using a new slot)
 		if currentCount == 0 then
 			if GameData.GetInventoryCount(player) >= GameData.GetMaxInventory(player) then
 				NotificationEvent:FireClient(player, "Your inventory is full! Sell items at the Forge.", "Error")
@@ -256,7 +309,7 @@ VIPFreeReroll.OnServerEvent:Connect(function(player, isDews)
 	end
 
 	if canReroll then
-		local newSeed = math.random(1, 9999999)
+		local newSeed = os.time() + math.random(1, 9999999)
 		player:SetAttribute("PersonalShopSeed", newSeed)
 		player:SetAttribute("ShopSeedTime", math.floor(os.time() / 600))
 		player:SetAttribute("ShopPurchases_Seed", newSeed)
@@ -267,34 +320,98 @@ VIPFreeReroll.OnServerEvent:Connect(function(player, isDews)
 	end
 end)
 
+-- Handle DevProducts (Rerolls, Dews, Items, Gifts)
 MarketplaceService.ProcessReceipt = function(receiptInfo)
 	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
 	if not player then return Enum.ProductPurchaseDecision.NotProcessedYet end
 
-	for _, prod in ipairs(ItemData.Products) do
-		if prod.ID == receiptInfo.ProductId then
-			if prod.IsReroll then
-				local newSeed = math.random(1, 9999999)
-				player:SetAttribute("PersonalShopSeed", newSeed); player:SetAttribute("ShopSeedTime", math.floor(os.time() / 600))
-				player:SetAttribute("ShopPurchases_Seed", newSeed); player:SetAttribute("ShopPurchases_Data", "")
-				NotificationEvent:FireClient(player, "Shop Successfully Rerolled!", "Success")
-			elseif prod.Reward == "Dews" then
-				player.leaderstats.Dews.Value += prod.Amount
-				NotificationEvent:FireClient(player, "Purchased " .. prod.Amount .. " Dews!", "Success")
-			elseif prod.Reward == "Item" then
-				local attrName = prod.ItemName:gsub("[^%w]", "") .. "Count"
-				player:SetAttribute(attrName, (player:GetAttribute(attrName) or 0) + prod.Amount)
-				NotificationEvent:FireClient(player, "Purchased " .. prod.ItemName .. "!", "Success")
+	local handled = false
+	if ItemData.Products then
+		for _, prod in ipairs(ItemData.Products) do
+			if prod.ID == receiptInfo.ProductId then
+				if prod.IsReroll then
+					local newSeed = os.time() + math.random(1, 9999999)
+					player:SetAttribute("PersonalShopSeed", newSeed)
+					player:SetAttribute("ShopSeedTime", math.floor(os.time() / 600))
+					player:SetAttribute("ShopPurchases_Seed", newSeed)
+					player:SetAttribute("ShopPurchases_Data", "")
+					NotificationEvent:FireClient(player, "Shop Successfully Rerolled!", "Success")
+				elseif prod.Reward == "Dews" then
+					local ls = player:FindFirstChild("leaderstats")
+					if ls and ls:FindFirstChild("Dews") then
+						ls.Dews.Value += prod.Amount
+					end
+					NotificationEvent:FireClient(player, "Purchased " .. prod.Amount .. " Dews!", "Success")
+				elseif prod.Reward == "Item" then
+					local attrName = prod.ItemName:gsub("[^%w]", "") .. "Count"
+					player:SetAttribute(attrName, (player:GetAttribute(attrName) or 0) + prod.Amount)
+					NotificationEvent:FireClient(player, "Purchased " .. prod.ItemName .. "!", "Success")
+
+					-- [[ THE FIX: Transform Gift product into an Inventory Item ]]
+				elseif prod.IsGift then
+					local giftName = (prod.TargetPass or "Premium") .. " Gift"
+					local attrName = giftName:gsub("[^%w]", "") .. "Count"
+					player:SetAttribute(attrName, (player:GetAttribute(attrName) or 0) + 1)
+					NotificationEvent:FireClient(player, "You received a " .. giftName .. " item!", "Success")
+				end
+				handled = true
+				break
 			end
-
-			task.spawn(function()
-				local d = { Prestige = player.leaderstats.Prestige.Value, Dews = player.leaderstats.Dews.Value, Elo = player.leaderstats.Elo.Value }
-				for k, v in pairs(player:GetAttributes()) do if k ~= "DataLoaded" then d[k] = v end end
-				pcall(function() GameDataStore:SetAsync(player.UserId, d) end)
-			end)
-
-			break
 		end
 	end
-	return Enum.ProductPurchaseDecision.PurchaseGranted
+
+	if handled then
+		task.spawn(function()
+			pcall(function()
+				local ls = player:FindFirstChild("leaderstats")
+				local d = { 
+					Prestige = ls and ls:FindFirstChild("Prestige") and ls.Prestige.Value or 0, 
+					Dews = ls and ls:FindFirstChild("Dews") and ls.Dews.Value or 0, 
+					Elo = ls and ls:FindFirstChild("Elo") and ls.Elo.Value or 1000 
+				}
+				for k, v in pairs(player:GetAttributes()) do if k ~= "DataLoaded" then d[k] = v end end
+				GameDataStore:SetAsync(player.UserId, d)
+			end)
+		end)
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	return Enum.ProductPurchaseDecision.NotProcessedYet
 end
+
+-- Handle Gamepasses (VIP, EXP Boosts, etc.) applied instantly
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+	if wasPurchased then
+		if ItemData.Gamepasses then
+			for _, gp in ipairs(ItemData.Gamepasses) do
+				if gp.ID == gamePassId then
+
+					-- Standard Pass Assignments
+					if string.find(string.upper(gp.Name), "VIP") then
+						player:SetAttribute("HasVIP", true)
+					elseif string.find(string.upper(gp.Name), "2X EXP") then
+						player:SetAttribute("Has2xEXP", true)
+					elseif string.find(string.upper(gp.Name), "EXPANSION") then
+						player:SetAttribute("HasBackpackExpansion", true)
+					end
+
+					NotificationEvent:FireClient(player, "Successfully purchased " .. gp.Name .. "!", "Success")
+
+					task.spawn(function()
+						pcall(function()
+							local ls = player:FindFirstChild("leaderstats")
+							local d = { 
+								Prestige = ls and ls:FindFirstChild("Prestige") and ls.Prestige.Value or 0, 
+								Dews = ls and ls:FindFirstChild("Dews") and ls.Dews.Value or 0, 
+								Elo = ls and ls:FindFirstChild("Elo") and ls.Elo.Value or 1000 
+							}
+							for k, v in pairs(player:GetAttributes()) do if k ~= "DataLoaded" then d[k] = v end end
+							GameDataStore:SetAsync(player.UserId, d)
+						end)
+					end)
+					break
+				end
+			end
+		end
+	end
+end)
