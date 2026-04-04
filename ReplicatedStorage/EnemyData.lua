@@ -4,6 +4,28 @@ local EnemyData = {}
 
 local emptyTitans = {Power="None", Speed="None", Hardening="None", Endurance="None", Precision="None", Potential="None"}
 
+-- [[ NEW: ICON DIRECTORY FOR BOSS DEPLOYMENT CARDS ]]
+EnemyData.BossIcons = {
+	-- Raids
+	["Raid_Part1"] = "rbxassetid://119392967268687", -- Female Titan
+	["Raid_Part2"] = "rbxassetid://80153476985849",  -- Armored Titan
+	["Raid_Part3"] = "rbxassetid://90132878979603",  -- Beast Titan
+	["Raid_Part4"] = "rbxassetid://129655150803684", -- War Hammer Titan
+	["Raid_Part5"] = "rbxassetid://114506098039778", -- Founding Titan
+	["Raid_Part8"] = "rbxassetid://100826303284945", -- Colossal Titan
+
+	-- World Bosses
+	["Rod Reiss Titan"] = "rbxassetid://129655150803684",
+	["Lara Tybur"] = "rbxassetid://80153476985849",
+	["Doomsday Titan"] = "rbxassetid://119392967268687",
+	["Ymir Fritz"] = "rbxassetid://90132878979603",
+
+	-- Nightmare Hunts
+	["Frenzied Beast"] = "rbxassetid://90132878979603",
+	["Abyssal Armored"] = "rbxassetid://80153476985849",
+	["Doomsday Apparition"] = "rbxassetid://119392967268687",
+}
+
 EnemyData.Allies = {
 	["Armin Arlert"] = { Name = "Armin Arlert", Health = 80, Strength = 12, Defense = 5, Speed = 8, Resolve = 25, TitanStats = emptyTitans, Skills = {"Spinning Slash", "Recover", "Basic Slash"} },
 	["Mikasa Ackerman"] = { Name = "Mikasa Ackerman", Health = 150, Strength = 40, Defense = 10, Speed = 35, Resolve = 15, TitanStats = emptyTitans, Skills = {"Nape Strike", "Spinning Slash", "Basic Slash"} },
@@ -12,7 +34,6 @@ EnemyData.Allies = {
 	["Erwin Smith"] = { Name = "Erwin Smith", Health = 400, Strength = 35, Defense = 30, Speed = 20, Resolve = 100, Skills = {"Basic Slash", "Recover"} }
 }
 
--- [[ THE FIX: Raid Boss Base HP & Shields Aggressively Squished ]]
 EnemyData.RaidBosses = {
 	["Raid_Part1"] = { IsBoss = true, Name = "Female Titan", Req = 1, Health = 3000, GateType = "Hardening", GateHP = 1000, Strength = 120, Defense = 50, Speed = 65, Resolve = 60, TitanStats = {Power="A", Speed="A", Hardening="A", Endurance="B", Precision="B", Potential="B"}, Skills = {"Hardened Punch", "Nape Guard", "Leg Sweep"}, Drops = { Dews = 800, XP = 2500, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 5, ["Scout Regiment Cloak"] = 25, ["Scout Training Manual"] = 15, ["Iron Bamboo Heart"] = 5 } } },
 	["Raid_Part2"] = { IsBoss = true, Name = "Armored Titan", Req = 1, Health = 4500, GateType = "Reinforced Skin", GateHP = 2500, Strength = 180, Defense = 100, Speed = 30, Resolve = 70, TitanStats = {Power="B", Speed="C", Hardening="S", Endurance="A", Precision="C", Potential="C"}, Skills = {"Armored Tackle", "Hardened Punch", "Brutal Swipe"}, Drops = { Dews = 1500, XP = 5000, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 6, ["Advanced ODM Gear"] = 15, ["Ultrahard Steel Blades"] = 25, ["Iron Bamboo Heart"] = 10 } } },
@@ -22,7 +43,6 @@ EnemyData.RaidBosses = {
 	["Raid_Part8"] = { IsBoss = true, Name = "Colossal Titan", Req = 1, Health = 12000, GateType = "Steam", GateHP = 5, Strength = 600, Defense = 100, Speed = 10, Resolve = 150, TitanStats = {Power="S", Speed="E", Hardening="C", Endurance="S", Precision="E", Potential="S"}, Skills = {"Colossal Steam", "Stomp"}, Drops = { Dews = 8000, XP = 25000, ItemChance = { ["Standard Titan Serum"] = 100, ["Spinal Fluid Syringe"] = 10, ["Ymir's Clay Fragment"] = 2, ["Glowing Titan Crystal"] = 10 } } }
 }
 
--- [[ THE FIX: World Boss Base HP & Shields Aggressively Squished ]]
 EnemyData.WorldBosses = {
 	["Rod Reiss Titan"] = {
 		Name = "Rod Reiss (Abnormal)", Desc = "A massive, crawling monstrosity radiating intense heat. Slow, but devastatingly durable.", IsBoss = true, 
@@ -176,7 +196,6 @@ EnemyData.Parts = {
 	}
 }
 
--- [[ THE FIX: Path Memories Base HP Aggressively Squished ]]
 EnemyData.PathsMemories = {
 	{ Name = "Memory of the Smiling Titan", Health = 500, Strength = 120, Defense = 40, Speed = 45, Resolve = 100, TitanStats = emptyTitans, Skills = {"Titan Grab", "Brutal Swipe"}, Drops = {XP=1000, Dews=500} },
 	{ Name = "Memory of the Female Titan", Health = 800, GateType="Hardening", GateHP=300, Strength = 200, Defense = 80, Speed = 100, Resolve = 150, TitanStats = emptyTitans, Skills = {"Brutal Swipe", "Block"}, Drops = {XP=3000, Dews=1000} },
@@ -186,7 +205,6 @@ EnemyData.PathsMemories = {
 	{ Name = "Memory of the Colossal", Health = 2500, GateType="Steam", GateHP=6, Strength = 450, Defense = 80, Speed = 10, Resolve = 300, TitanStats = emptyTitans, Skills = {"Colossal Steam", "Stomp"}, Drops = {XP=8000, Dews=5000, ItemChance = { ["Glowing Titan Crystal"] = 2 } } }
 }
 
--- [[ THE FIX: Nightmare Hunts Base HP & Shields Aggressively Squished ]]
 EnemyData.NightmareHunts = {
 	["Frenzied Beast"] = {
 		IsBoss = true, IsNightmare = true, Name = "Frenzied Beast Titan", Req = 5, Health = 10000,
