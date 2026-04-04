@@ -7,23 +7,23 @@ local emptyTitans = {Power="None", Speed="None", Hardening="None", Endurance="No
 -- [[ NEW: ICON DIRECTORY FOR BOSS DEPLOYMENT CARDS ]]
 EnemyData.BossIcons = {
 	-- Raids
-	["Raid_Part1"] = "rbxassetid://119392967268687", -- Female Titan
-	["Raid_Part2"] = "rbxassetid://80153476985849",  -- Armored Titan
-	["Raid_Part3"] = "rbxassetid://90132878979603",  -- Beast Titan
-	["Raid_Part4"] = "rbxassetid://129655150803684", -- War Hammer Titan
-	["Raid_Part5"] = "rbxassetid://114506098039778", -- Founding Titan
-	["Raid_Part8"] = "rbxassetid://100826303284945", -- Colossal Titan
+	["Raid_Part1"] = "rbxassetid://118182722089835", -- Female Titan
+	["Raid_Part2"] = "rbxassetid://127437496013300",  -- Armored Titan
+	["Raid_Part3"] = "rbxassetid://95511063358417",  -- Beast Titan
+	["Raid_Part4"] = "rbxassetid://92481334765869", -- War Hammer Titan
+	["Raid_Part5"] = "rbxassetid://77055155553118", -- Founding Titan
+	["Raid_Part8"] = "rbxassetid://82958903182689", -- Colossal Titan
 
 	-- World Bosses
-	["Rod Reiss Titan"] = "rbxassetid://129655150803684",
-	["Lara Tybur"] = "rbxassetid://80153476985849",
-	["Doomsday Titan"] = "rbxassetid://119392967268687",
-	["Ymir Fritz"] = "rbxassetid://90132878979603",
+	["Rod Reiss Titan"] = "rbxassetid://119392967268687",
+	["Lara Tybur"] = "rbxassetid://92481334765869",
+	["Doomsday Titan"] = "rbxassetid://77055155553118",
+	["Ymir Fritz"] = "rbxassetid://129655150803684",
 
 	-- Nightmare Hunts
-	["Frenzied Beast"] = "rbxassetid://90132878979603",
-	["Abyssal Armored"] = "rbxassetid://80153476985849",
-	["Doomsday Apparition"] = "rbxassetid://119392967268687",
+	["Frenzied Beast"] = "rbxassetid://126246803477895",
+	["Abyssal Armored"] = "rbxassetid://75593809803541",
+	["Doomsday Apparition"] = "rbxassetid://114493300912789",
 }
 
 EnemyData.Allies = {
