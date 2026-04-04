@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: SkillsTab
 local SkillsTab = {}
 
@@ -139,7 +138,6 @@ function SkillsTab.Initialize(parentFrame)
 	libLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	libLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-	-- THE SCROLL FIX: Let Roblox automatically expand the scroll container size based on internal elements
 	libLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		SkillLibraryScroll.CanvasSize = UDim2.new(0, 0, 0, libLayout.AbsoluteContentSize.Y + 40)
 	end)
@@ -160,30 +158,44 @@ function SkillsTab.Initialize(parentFrame)
 		}
 
 		for sName, sData in pairs(tData) do
-			if type(sData) == "table" and sData.Type == "Style" and allowedRequirements[sData.Requirement] then
+			if type(sData) == "table" and sData.Type == "Style" then
 				local reqGroup = allowedRequirements[sData.Requirement]
 				local hasWeapon = false
+				local isClanSkill = false
 
-				if sData.Requirement == "ODM" then
-					hasWeapon = true 
-					table.insert(defaultMoves, sName)
-				else
-					for iName, iData in pairs(ItemData.Equipment or {}) do
-						if iData.Style == sData.Requirement then
-							local safeNameBase = iName:gsub("[^%w]", "")
-							local wCount = tonumber(player:GetAttribute(safeNameBase .. "Count")) or tonumber(player:GetAttribute(iName)) or 0
-							if wCount > 0 then
-								hasWeapon = true
-								break
+				-- Check if it's a Weapon Skill
+				if reqGroup then
+					if sData.Requirement == "ODM" then
+						hasWeapon = true 
+						table.insert(defaultMoves, sName)
+					else
+						for iName, iData in pairs(ItemData.Equipment or {}) do
+							if iData.Style == sData.Requirement then
+								local safeNameBase = iName:gsub("[^%w]", "")
+								local wCount = tonumber(player:GetAttribute(safeNameBase .. "Count")) or tonumber(player:GetAttribute(iName)) or 0
+								if wCount > 0 then
+									hasWeapon = true
+									break
+								end
 							end
 						end
 					end
+					-- Check if it's a Clan Skill
+				else
+					local myClan = player:GetAttribute("Clan")
+					if myClan and string.find(myClan, sData.Requirement) then
+						reqGroup = "CLAN LINEAGE"
+						hasWeapon = true
+						isClanSkill = true
+					end
 				end
 
-				local cat = reqGroup .. " SKILLS"
-				if not categorizedSkills[cat] then categorizedSkills[cat] = { HasUnlocked = false, Skills = {} } end
-				if hasWeapon then categorizedSkills[cat].HasUnlocked = true end
-				table.insert(categorizedSkills[cat].Skills, {Name = sName, Data = sData, HasWep = hasWeapon})
+				if reqGroup then
+					local cat = reqGroup .. " SKILLS"
+					if not categorizedSkills[cat] then categorizedSkills[cat] = { HasUnlocked = false, Skills = {} } end
+					if hasWeapon then categorizedSkills[cat].HasUnlocked = true end
+					table.insert(categorizedSkills[cat].Skills, {Name = sName, Data = sData, HasWep = hasWeapon})
+				end
 			end
 		end
 
@@ -224,14 +236,12 @@ function SkillsTab.Initialize(parentFrame)
 				GridContainer.LayoutOrder = sOrderCount; sOrderCount += 1 
 
 				local uigrid = Instance.new("UIGridLayout", GridContainer)
-				-- [[ THE VISUAL FIX: Compact Box Layout (180x220) ]]
 				uigrid.CellSize = UDim2.new(0, 180, 0, 220) 
 				uigrid.CellPadding = UDim2.new(0, 12, 0, 15)
 				uigrid.FillDirection = Enum.FillDirection.Horizontal
 				uigrid.SortOrder = Enum.SortOrder.LayoutOrder
 				uigrid.HorizontalAlignment = Enum.HorizontalAlignment.Left 
 
-				-- Automatically sizes the category container to fit the exact boxes
 				uigrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 					GridContainer.Size = UDim2.new(0.95, 0, 0, uigrid.AbsoluteContentSize.Y)
 				end)
@@ -247,26 +257,21 @@ function SkillsTab.Initialize(parentFrame)
 					if sData.Requirement == "ODM" then wepText = "[ BASE SKILL ]"
 					else wepText = "[ REQ: " .. string.upper(sData.Requirement) .. " ]" end
 
-					-- Title Top Centered
 					local sTitle = CreateSharpLabel(sCard, string.upper(sName), UDim2.new(1, -20, 0, 35), Enum.Font.GothamBlack, Color3.fromRGB(245, 245, 245), 14)
 					sTitle.Position = UDim2.new(0.5, 0, 0, 10); sTitle.AnchorPoint = Vector2.new(0.5, 0)
 					sTitle.TextWrapped = true; sTitle.TextScaled = true
 					local tc = Instance.new("UITextSizeConstraint", sTitle); tc.MaxTextSize = 14; tc.MinTextSize = 9
 
-					-- Tag Just Below Title
 					local sReq = CreateSharpLabel(sCard, wepText, UDim2.new(1, -10, 0, 15), Enum.Font.GothamBold, (hasWep and Color3.fromRGB(85, 255, 85) or Color3.fromRGB(255, 85, 85)), 10)
 					sReq.Position = UDim2.new(0.5, 0, 0, 48); sReq.AnchorPoint = Vector2.new(0.5, 0)
 
-					-- Description Center Justified
 					local desc = CreateSharpLabel(sCard, sData.Desc or "A powerful technique.", UDim2.new(1, -20, 0, 70), Enum.Font.GothamMedium, Color3.fromRGB(160, 160, 175), 11)
 					desc.Position = UDim2.new(0.5, 0, 0, 68); desc.AnchorPoint = Vector2.new(0.5, 0)
 					desc.TextWrapped = true; desc.TextYAlignment = Enum.TextYAlignment.Top
 
-					-- Equip Button Spanning Bottom
 					local eqBtn, eqStroke = CreateSharpButton(sCard, "EQUIP", UDim2.new(1, -20, 0, 30), Enum.Font.GothamBlack, 11)
 					eqBtn.Position = UDim2.new(0.5, 0, 1, -10); eqBtn.AnchorPoint = Vector2.new(0.5, 1)
 
-					-- Synergy (If exists)
 					if sData.ComboReq then
 						local synText = "Synergy: After " .. string.upper(sData.ComboReq)
 						local syn = CreateSharpLabel(sCard, synText, UDim2.new(1, -10, 0, 30), Enum.Font.GothamBold, Color3.fromRGB(225, 185, 60), 10)
@@ -293,7 +298,6 @@ function SkillsTab.Initialize(parentFrame)
 						local ActionsOverlay = Instance.new("Frame", sCard)
 						ActionsOverlay.Size = UDim2.new(1, 0, 1, 0); ActionsOverlay.BackgroundColor3 = Color3.fromRGB(18, 18, 22); ActionsOverlay.BackgroundTransparency = 0.1; ActionsOverlay.Visible = false; ActionsOverlay.ZIndex = 10; ActionsOverlay.Active = true; ActionsOverlay.BorderSizePixel = 0
 
-						-- Vertical stack layout for the 4 slots and Cancel button inside the card
 						local actLayout = Instance.new("UIListLayout", ActionsOverlay)
 						actLayout.FillDirection = Enum.FillDirection.Vertical
 						actLayout.Padding = UDim.new(0, 6)
