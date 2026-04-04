@@ -26,9 +26,12 @@ Network:WaitForChild("EquipItem").OnServerEvent:Connect(function(player, itemNam
 end)
 
 Network:WaitForChild("SellItem").OnServerEvent:Connect(function(player, itemName, sellAll)
+	local safeNameBase = itemName:gsub("[^%w]", "")
+	if player:GetAttribute(safeNameBase .. "_Locked") then return end
+
 	local itemInfo = ItemData.Equipment[itemName] or ItemData.Consumables[itemName]
 	if itemInfo then
-		local safeName = itemName:gsub("[^%w]", "") .. "Count"
+		local safeName = safeNameBase .. "Count"
 		local count = player:GetAttribute(safeName) or 0
 		if count > 0 then
 			local sellPrice = SellValues[itemInfo.Rarity or "Common"] or 10
@@ -42,6 +45,14 @@ end)
 Network:WaitForChild("AutoSell").OnServerEvent:Connect(function(player, rarity)
 	local attrName = "AutoSell_" .. rarity
 	player:SetAttribute(attrName, not player:GetAttribute(attrName))
+end)
+
+-- [[ ADDED: Locking System ]]
+local ToggleLock = Network:FindFirstChild("ToggleLock") or Instance.new("RemoteEvent", Network)
+ToggleLock.Name = "ToggleLock"
+ToggleLock.OnServerEvent:Connect(function(player, itemName)
+	local safeName = itemName:gsub("[^%w]", "") .. "_Locked"
+	player:SetAttribute(safeName, not player:GetAttribute(safeName))
 end)
 
 Network:WaitForChild("ConsumeItem").OnServerEvent:Connect(function(player, itemName)
