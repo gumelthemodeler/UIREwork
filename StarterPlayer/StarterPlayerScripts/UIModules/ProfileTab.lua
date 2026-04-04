@@ -11,9 +11,6 @@ local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
 local GameData = require(ReplicatedStorage:WaitForChild("GameData"))
 local CosmeticData = require(ReplicatedStorage:WaitForChild("CosmeticData"))
 
-local hasSkillData, SkillData = pcall(function() return require(ReplicatedStorage:WaitForChild("SkillData")) end)
-
-local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 local notifModule = script.Parent:WaitForChild("NotificationManager", 2)
 local NotificationManager = notifModule and require(notifModule) or nil
 local auraModule = script.Parent:WaitForChild("UIAuraManager", 2)
@@ -21,7 +18,10 @@ local UIAuraManager = auraModule and require(auraModule) or nil
 
 local player = Players.LocalPlayer
 local MainFrame, ColumnsWrapper, ContentArea, TabsWrapper
-local SubTabs, SubBtns = {}, {}
+
+-- THE FIX: Properly declaring both tables so they aren't nil
+local SubTabs = {}
+local SubBtns = {}
 
 local InvGrid
 local wpnLabel, accLabel, titanLabel, clanLabel, regimentLabel
@@ -83,14 +83,8 @@ local function CreateSharpButton(parent, text, size, font, textSize)
 	stroke.Thickness = 2
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-	btn.MouseEnter:Connect(function()
-		stroke.Color = Color3.fromRGB(225, 185, 60)
-		btn.TextColor3 = Color3.fromRGB(225, 185, 60)
-	end)
-	btn.MouseLeave:Connect(function()
-		stroke.Color = Color3.fromRGB(70, 70, 80)
-		btn.TextColor3 = Color3.fromRGB(245, 245, 245)
-	end)
+	btn.MouseEnter:Connect(function() stroke.Color = Color3.fromRGB(225, 185, 60); btn.TextColor3 = Color3.fromRGB(225, 185, 60) end)
+	btn.MouseLeave:Connect(function() stroke.Color = Color3.fromRGB(70, 70, 80); btn.TextColor3 = Color3.fromRGB(245, 245, 245) end)
 	return btn, stroke
 end
 
@@ -157,9 +151,7 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	mLayout.Padding = UDim.new(0, 15)
 	mLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	mLayout.FillDirection = Enum.FillDirection.Vertical 
-
-	local mPad = Instance.new("UIPadding", MainFrame)
-	mPad.PaddingTop = UDim.new(0, 10); mPad.PaddingBottom = UDim.new(0, 10)
+	local mPad = Instance.new("UIPadding", MainFrame); mPad.PaddingTop = UDim.new(0, 10); mPad.PaddingBottom = UDim.new(0, 10)
 
 	-- ==========================================
 	-- [[ COLUMNS WRAPPER ]]
@@ -168,18 +160,13 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	ColumnsWrapper.Size = UDim2.new(1, 0, 1, 0)
 	ColumnsWrapper.BackgroundTransparency = 1
 	ColumnsWrapper.LayoutOrder = 1
-
-	local cwLayout = Instance.new("UIListLayout", ColumnsWrapper)
-	cwLayout.FillDirection = Enum.FillDirection.Horizontal
-	cwLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	cwLayout.Padding = UDim.new(0, 15)
+	local cwLayout = Instance.new("UIListLayout", ColumnsWrapper); cwLayout.FillDirection = Enum.FillDirection.Horizontal; cwLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; cwLayout.Padding = UDim.new(0, 15)
 
 	-- ==========================================
 	-- [[ 1. PC COLUMN 1 (AVATAR & INFO) ]]
 	-- ==========================================
 	local ShowcaseCard = CreateGrimPanel(ColumnsWrapper)
 	ShowcaseCard.Size = UDim2.new(0.31, 0, 1, 0); ShowcaseCard.LayoutOrder = 1
-
 	local scLayout = Instance.new("UIListLayout", ShowcaseCard); scLayout.SortOrder = Enum.SortOrder.LayoutOrder; scLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; scLayout.Padding = UDim.new(0, 10)
 	local scPad = Instance.new("UIPadding", ShowcaseCard); scPad.PaddingTop = UDim.new(0, 20); scPad.PaddingBottom = UDim.new(0, 20)
 
@@ -191,6 +178,7 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 
 	AvatarAuraGlow = Instance.new("Frame", AvatarContainer)
 	AvatarAuraGlow.Size = UDim2.new(1, 0, 1, 0); AvatarAuraGlow.Position = UDim2.new(0.5, 0, 0.5, 0); AvatarAuraGlow.AnchorPoint = Vector2.new(0.5, 0.5); AvatarAuraGlow.BackgroundTransparency = 1
+	local glowCorner = Instance.new("UICorner", AvatarAuraGlow); glowCorner.CornerRadius = UDim.new(1, 0)
 
 	AvatarBox = Instance.new("ImageLabel", AvatarContainer)
 	AvatarBox.Size = UDim2.new(1, 0, 1, 0); AvatarBox.Position = UDim2.new(0.5, 0, 0.5, 0); AvatarBox.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -200,33 +188,23 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	local boxStroke = Instance.new("UIStroke", AvatarBox); boxStroke.Color = Color3.fromRGB(70, 70, 80); boxStroke.Thickness = 2
 
 	local PlayerNameLbl = CreateSharpLabel(ShowcaseCard, string.upper(player.Name), UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, Color3.fromRGB(245, 245, 245), 20); PlayerNameLbl.LayoutOrder = 3
-
-	regIcon = Instance.new("ImageLabel", ShowcaseCard)
-	regIcon.Size = UDim2.new(0, 100, 0, 100); regIcon.BackgroundTransparency = 1; regIcon.ZIndex = 6; regIcon.LayoutOrder = 4
+	regIcon = Instance.new("ImageLabel", ShowcaseCard); regIcon.Size = UDim2.new(0, 100, 0, 100); regIcon.BackgroundTransparency = 1; regIcon.ZIndex = 6; regIcon.LayoutOrder = 4
 
 	-- ==========================================
 	-- [[ 2. PC COLUMN 2 (RADAR & STATS) ]]
 	-- ==========================================
 	local MidCol = CreateGrimPanel(ColumnsWrapper)
 	MidCol.Size = UDim2.new(0.31, 0, 1, 0); MidCol.LayoutOrder = 2
-
 	local midLayout = Instance.new("UIListLayout", MidCol); midLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; midLayout.SortOrder = Enum.SortOrder.LayoutOrder; midLayout.Padding = UDim.new(0, 10)
 	local midPad = Instance.new("UIPadding", MidCol); midPad.PaddingTop = UDim.new(0, 15); midPad.PaddingBottom = UDim.new(0, 15)
 
-	local RadarBG = CreateGrimPanel(MidCol)
-	RadarBG.Size = UDim2.new(0.95, 0, 0, 180); RadarBG.LayoutOrder = 1
-
-	RadarContainer = Instance.new("Frame", RadarBG)
-	RadarContainer.Size = UDim2.new(1, 0, 1, 0); RadarContainer.Position = UDim2.new(0.5, 0, 0.5, 0); RadarContainer.AnchorPoint = Vector2.new(0.5, 0.5); RadarContainer.BackgroundTransparency = 1
+	local RadarBG = CreateGrimPanel(MidCol); RadarBG.Size = UDim2.new(0.95, 0, 0, 180); RadarBG.LayoutOrder = 1
+	RadarContainer = Instance.new("Frame", RadarBG); RadarContainer.Size = UDim2.new(1, 0, 1, 0); RadarContainer.Position = UDim2.new(0.5, 0, 0.5, 0); RadarContainer.AnchorPoint = Vector2.new(0.5, 0.5); RadarContainer.BackgroundTransparency = 1
 	Instance.new("UIAspectRatioConstraint", RadarContainer).AspectRatio = 1
 
-	local StatsRect = CreateGrimPanel(MidCol)
-	StatsRect.Size = UDim2.new(0.95, 0, 0, 0); StatsRect.AutomaticSize = Enum.AutomaticSize.Y; StatsRect.LayoutOrder = 2
-
-	local srLayout = Instance.new("UIListLayout", StatsRect)
-	srLayout.Padding = UDim.new(0, 6)
-	local statPad = Instance.new("UIPadding", StatsRect)
-	statPad.PaddingTop = UDim.new(0, 12); statPad.PaddingBottom = UDim.new(0, 12); statPad.PaddingLeft = UDim.new(0, 15)
+	local StatsRect = CreateGrimPanel(MidCol); StatsRect.Size = UDim2.new(0.95, 0, 0, 0); StatsRect.AutomaticSize = Enum.AutomaticSize.Y; StatsRect.LayoutOrder = 2
+	local srLayout = Instance.new("UIListLayout", StatsRect); srLayout.Padding = UDim.new(0, 6)
+	local statPad = Instance.new("UIPadding", StatsRect); statPad.PaddingTop = UDim.new(0, 12); statPad.PaddingBottom = UDim.new(0, 12); statPad.PaddingLeft = UDim.new(0, 15)
 
 	local function CreateInfoLabel(parent)
 		local l = CreateSharpLabel(parent, "", UDim2.new(1, -15, 0, 24), Enum.Font.GothamBold, Color3.fromRGB(245, 245, 245), 12)
@@ -241,36 +219,17 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	accLabel = CreateInfoLabel(StatsRect); accLabel.RichText = true
 
 	local LoadoutHeader = CreateSharpLabel(MidCol, "ACTIVE LOADOUT", UDim2.new(1, 0, 0, 20), Enum.Font.GothamBlack, Color3.fromRGB(225, 185, 60), 14); LoadoutHeader.LayoutOrder = 3
-
-	local LoadoutGrid = Instance.new("Frame", MidCol)
-	LoadoutGrid.Size = UDim2.new(0.95, 0, 0, 65); LoadoutGrid.BackgroundTransparency = 1; LoadoutGrid.LayoutOrder = 4
-
-	local lgLayout = Instance.new("UIGridLayout", LoadoutGrid)
-	lgLayout.CellSize = UDim2.new(0, 65, 0, 65) 
-	lgLayout.CellPadding = UDim2.new(0, 8, 0, 0)
-	lgLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	lgLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	local LoadoutGrid = Instance.new("Frame", MidCol); LoadoutGrid.Size = UDim2.new(0.95, 0, 0, 65); LoadoutGrid.BackgroundTransparency = 1; LoadoutGrid.LayoutOrder = 4
+	local lgLayout = Instance.new("UIGridLayout", LoadoutGrid); lgLayout.CellSize = UDim2.new(0, 65, 0, 65); lgLayout.CellPadding = UDim2.new(0, 8, 0, 0); lgLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; lgLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
 	for i = 1, 4 do
-		local slotFrame = CreateGrimPanel(LoadoutGrid)
-		slotFrame.ClipsDescendants = true
-
-		local numLbl = CreateSharpLabel(slotFrame, tostring(i), UDim2.new(0, 15, 0, 15), Enum.Font.GothamBlack, Color3.fromRGB(160, 160, 175), 10)
-		numLbl.Position = UDim2.new(0, 4, 0, 4); numLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-		local nameLbl = CreateSharpLabel(slotFrame, "EMPTY", UDim2.new(1, -6, 1, -16), Enum.Font.GothamBold, Color3.fromRGB(245, 245, 245), 14)
-		nameLbl.Position = UDim2.new(0.5, 0, 0.5, 6)
-		nameLbl.AnchorPoint = Vector2.new(0.5, 0.5)
-		nameLbl.TextWrapped = true
-		nameLbl.TextScaled = false 
-		nameLbl.TextXAlignment = Enum.TextXAlignment.Center
-		nameLbl.TextYAlignment = Enum.TextYAlignment.Center
-
+		local slotFrame = CreateGrimPanel(LoadoutGrid); slotFrame.ClipsDescendants = true
+		local numLbl = CreateSharpLabel(slotFrame, tostring(i), UDim2.new(0, 15, 0, 15), Enum.Font.GothamBlack, Color3.fromRGB(160, 160, 175), 10); numLbl.Position = UDim2.new(0, 4, 0, 4); numLbl.TextXAlignment = Enum.TextXAlignment.Left
+		local nameLbl = CreateSharpLabel(slotFrame, "EMPTY", UDim2.new(1, -6, 1, -16), Enum.Font.GothamBold, Color3.fromRGB(245, 245, 245), 14); nameLbl.Position = UDim2.new(0.5, 0, 0.5, 6); nameLbl.AnchorPoint = Vector2.new(0.5, 0.5); nameLbl.TextWrapped = true; nameLbl.TextScaled = false; nameLbl.TextXAlignment = Enum.TextXAlignment.Center; nameLbl.TextYAlignment = Enum.TextYAlignment.Center
 		table.insert(SkillSlotLabels, nameLbl)
 	end
 
-	local ActionRow = Instance.new("Frame", MidCol)
-	ActionRow.Size = UDim2.new(0.95, 0, 0, 40); ActionRow.BackgroundTransparency = 1; ActionRow.LayoutOrder = 5
+	local ActionRow = Instance.new("Frame", MidCol); ActionRow.Size = UDim2.new(0.95, 0, 0, 40); ActionRow.BackgroundTransparency = 1; ActionRow.LayoutOrder = 5
 	toggleStatsBtn, _ = CreateSharpButton(ActionRow, "VIEW TITAN STATS", UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, 12)
 
 	-- ==========================================
@@ -278,7 +237,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	-- ==========================================
 	TabsWrapper = Instance.new("Frame", ColumnsWrapper)
 	TabsWrapper.Size = UDim2.new(0.32, 0, 1, 0); TabsWrapper.BackgroundTransparency = 1; TabsWrapper.LayoutOrder = 3
-
 	local twLayout = Instance.new("UIListLayout", TabsWrapper); twLayout.SortOrder = Enum.SortOrder.LayoutOrder; twLayout.Padding = UDim.new(0, 10)
 
 	local TopNav = CreateGrimPanel(TabsWrapper)
@@ -286,7 +244,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 
 	local NavScroll = Instance.new("ScrollingFrame", TopNav)
 	NavScroll.Size = UDim2.new(1, 0, 1, 0); NavScroll.BackgroundTransparency = 1; NavScroll.ScrollBarThickness = 0; NavScroll.ScrollingDirection = Enum.ScrollingDirection.X
-
 	local navLayout = Instance.new("UIListLayout", NavScroll); navLayout.FillDirection = Enum.FillDirection.Horizontal; navLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; navLayout.VerticalAlignment = Enum.VerticalAlignment.Center; navLayout.Padding = UDim.new(0, 8)
 	local navPad = Instance.new("UIPadding", NavScroll); navPad.PaddingLeft = UDim.new(0, 10); navPad.PaddingRight = UDim.new(0, 10)
 	navLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() NavScroll.CanvasSize = UDim2.new(0, navLayout.AbsoluteContentSize.X + 20, 0, 0) end)
@@ -297,7 +254,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	local function CreateSubNavBtn(name, text)
 		local btn, subStroke = CreateSharpButton(NavScroll, text, UDim2.new(0, 95, 0, 24), Enum.Font.GothamBold, 10)
 		btn.TextColor3 = Color3.fromRGB(160, 160, 175); subStroke.Color = Color3.fromRGB(70, 70, 80)
-
 		btn.MouseButton1Click:Connect(function()
 			for k, v in pairs(SubBtns) do v.TextColor3 = Color3.fromRGB(160, 160, 175); v:FindFirstChild("UIStroke").Color = Color3.fromRGB(70, 70, 80) end
 			btn.TextColor3 = Color3.fromRGB(245, 245, 245); subStroke.Color = Color3.fromRGB(225, 185, 60)
@@ -307,7 +263,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	end
 
 	CreateSubNavBtn("Inventory", "INVENTORY")
-	CreateSubNavBtn("Skills", "SKILLS")
 	CreateSubNavBtn("Titles", "TITLES")
 	CreateSubNavBtn("Auras", "AURAS")
 
@@ -315,9 +270,7 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	SubBtns["Inventory"]:FindFirstChild("UIStroke").Color = Color3.fromRGB(225, 185, 60)
 
 	-- [[ 3A. INVENTORY TAB ]]
-	SubTabs["Inventory"] = CreateGrimPanel(ContentArea)
-	SubTabs["Inventory"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Inventory"].Visible = true
-
+	SubTabs["Inventory"] = CreateGrimPanel(ContentArea); SubTabs["Inventory"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Inventory"].Visible = true
 	InvTitle = CreateSharpLabel(SubTabs["Inventory"], "INVENTORY (0/50)", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, Color3.fromRGB(225, 185, 60), 14)
 
 	local FilterFrame = Instance.new("Frame", SubTabs["Inventory"])
@@ -343,10 +296,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 	InvGrid.Size = UDim2.new(1, -10, 1, -70); InvGrid.Position = UDim2.new(0, 5, 0, 65); InvGrid.BackgroundTransparency = 1; InvGrid.BorderSizePixel = 0; InvGrid.ScrollBarThickness = 4
 	local gl = Instance.new("UIGridLayout", InvGrid)
 	gl.CellSize = UDim2.new(0, 76, 0, 76); gl.CellPadding = UDim2.new(0, 10, 0, 12); gl.HorizontalAlignment = Enum.HorizontalAlignment.Center; gl.SortOrder = Enum.SortOrder.LayoutOrder
-
-	-- [[ 3B. SKILLS TAB ]]
-	SubTabs["Skills"] = Instance.new("ScrollingFrame", ContentArea); SubTabs["Skills"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Skills"].BackgroundTransparency = 1; SubTabs["Skills"].Visible = false; SubTabs["Skills"].ScrollBarThickness = 6; SubTabs["Skills"].BorderSizePixel = 0
-	local skLayout = Instance.new("UIListLayout", SubTabs["Skills"]); skLayout.Padding = UDim.new(0, 10); skLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; local skPad = Instance.new("UIPadding", SubTabs["Skills"]); skPad.PaddingTop = UDim.new(0, 10); skPad.PaddingBottom = UDim.new(0, 20)
 
 	-- [[ 3C & 3D TITLES/AURAS LOGIC ]]
 	SubTabs["Titles"] = Instance.new("ScrollingFrame", ContentArea); SubTabs["Titles"].Size = UDim2.new(1, 0, 1, 0); SubTabs["Titles"].BackgroundTransparency = 1; SubTabs["Titles"].Visible = false; SubTabs["Titles"].ScrollBarThickness = 6; SubTabs["Titles"].BorderSizePixel = 0
@@ -380,7 +329,9 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 			end
 			table.insert(CosmeticUIUpdaters, UpdateState)
 			btn.MouseButton1Click:Connect(function() 
-				if type(CosmeticData.CheckUnlock) == "function" and CosmeticData.CheckUnlock(player, item.Data.ReqType, item.Data.ReqValue) then Network.EquipCosmetic:FireServer(typeKey, item.Key) end 
+				if type(CosmeticData.CheckUnlock) ~= "function" or CosmeticData.CheckUnlock(player, item.Data.ReqType, item.Data.ReqValue) then 
+					Network.EquipCosmetic:FireServer(typeKey, item.Key) 
+				end 
 			end)
 			UpdateState()
 		end
@@ -438,7 +389,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 
 		RenderRadarChart()
 
-		-- Safe Title & Aura resolution
 		local pTitle = player:GetAttribute("EquippedTitle") or "Cadet"; local pAura = player:GetAttribute("EquippedAura") or "None"
 		local resolvedTitleData = CosmeticData.Titles[pTitle]
 		if not resolvedTitleData then for k, v in pairs(CosmeticData.Titles or {}) do if v.Name == pTitle then resolvedTitleData = v break end end end
@@ -448,116 +398,6 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 		if not resolvedAuraData then for k, v in pairs(CosmeticData.Auras or {}) do if v.Name == pAura then resolvedAuraData = v break end end end
 		if UIAuraManager and type(UIAuraManager.ApplyAura) == "function" and resolvedAuraData then UIAuraManager.ApplyAura(AvatarAuraGlow, resolvedAuraData, AvatarBox) end
 
-		-- [[ SKILLS TAB FILTER & BUILDER ]]
-		for _, c in ipairs(SubTabs["Skills"]:GetChildren()) do if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end end
-
-		if hasSkillData and type(SkillData) == "table" then
-			local tData = SkillData.Skills or SkillData
-			local categorizedSkills = {}
-
-			for sName, sData in pairs(tData) do
-				if type(sData) == "table" then
-					-- FILTER OUT BASIC & TITAN SKILLS
-					local isBasic = sData.IsBasic or sData.Type == "Basic" or sName == "Transform" or sName == "Flare Gun" or sName == "Evasive Maneuver" or sName == "Recover"
-					local isTitan = sData.IsTitan or sData.Type == "Titan" or sData.TitanSkill
-
-					if not isBasic and not isTitan then
-						local hasWeapon = false
-						if sData.Weapon then
-							local wClean = sData.Weapon:gsub("[^%w]", "")
-							local wCount = tonumber(player:GetAttribute(wClean .. "Count")) or tonumber(player:GetAttribute(sData.Weapon)) or 0
-							if wCount > 0 then hasWeapon = true end
-						end
-
-						local isUnlocked = player:GetAttribute("UnlockedSkill_" .. sName) or player:GetAttribute("HasSkill_" .. sName) or hasWeapon
-
-						if isUnlocked or sData.Weapon then 
-							local cat = "GENERAL ABILITIES"
-							if sData.Weapon then cat = string.upper(sData.Weapon) .. " SKILLS"
-							elseif sData.Synergy then cat = string.upper(sData.Synergy) .. " SYNERGIES"
-							elseif sData.Range then cat = string.upper(sData.Range) .. " RANGE" end
-
-							if not categorizedSkills[cat] then categorizedSkills[cat] = {} end
-							table.insert(categorizedSkills[cat], {Name = sName, Data = sData, HasWep = hasWeapon})
-						end
-					end
-				end
-			end
-
-			local sortedCats = {}
-			for k, _ in pairs(categorizedSkills) do table.insert(sortedCats, k) end
-			table.sort(sortedCats)
-
-			local sOrderCount = 0
-			for _, catName in ipairs(sortedCats) do
-				local skills = categorizedSkills[catName]
-				if #skills > 0 then
-					local catHeader = CreateSharpLabel(SubTabs["Skills"], "- " .. catName .. " -", UDim2.new(1, 0, 0, 30), Enum.Font.GothamBlack, Color3.fromRGB(225, 185, 60), 16)
-					catHeader.LayoutOrder = sOrderCount; sOrderCount += 1
-
-					for _, item in ipairs(skills) do
-						local sName = item.Name; local sData = item.Data; local hasWep = item.HasWep
-						local sCard = CreateGrimPanel(SubTabs["Skills"]); sCard.Size = UDim2.new(0.95, 0, 0, 100); sCard.LayoutOrder = sOrderCount; sOrderCount += 1
-
-						local wepTag = sData.Weapon and (" <font color='"..(hasWep and "#55FF55" or "#FF5555").."' size='12'>[ REQUIRES: " .. string.upper(sData.Weapon) .. " ]</font>") or ""
-						local sTitle = CreateSharpLabel(sCard, sName .. wepTag, UDim2.new(1, -100, 0, 25), Enum.Font.GothamBlack, Color3.fromRGB(245, 245, 245), 15)
-						sTitle.Position = UDim2.new(0, 15, 0, 5); sTitle.TextXAlignment = Enum.TextXAlignment.Left; sTitle.RichText = true
-
-						local desc = CreateSharpLabel(sCard, sData.Desc or "A powerful technique.", UDim2.new(1, -100, 0, 35), Enum.Font.GothamMedium, Color3.fromRGB(160, 160, 175), 12)
-						desc.Position = UDim2.new(0, 15, 0, 30); desc.TextWrapped = true; desc.TextXAlignment = Enum.TextXAlignment.Left; desc.TextYAlignment = Enum.TextYAlignment.Top
-
-						if sData.Synergy then
-							local syn = CreateSharpLabel(sCard, "Synergy: " .. sData.Synergy, UDim2.new(1, -100, 0, 20), Enum.Font.GothamBold, Color3.fromRGB(225, 185, 60), 11)
-							syn.Position = UDim2.new(0, 15, 0, 70); syn.TextXAlignment = Enum.TextXAlignment.Left
-						end
-
-						local eqBtn, eqStroke = CreateSharpButton(sCard, "EQUIP", UDim2.new(0.22, 0, 0, 35), Enum.Font.GothamBlack, 11)
-						eqBtn.Position = UDim2.new(1, -15, 0.5, 0); eqBtn.AnchorPoint = Vector2.new(1, 0.5)
-
-						local isEquipped = false
-						for i=1,4 do if player:GetAttribute("EquippedSkill_"..i) == sName then isEquipped = true break end end
-
-						if isEquipped then 
-							eqBtn.Text = "EQUIPPED"; eqBtn.TextColor3 = Color3.fromRGB(225, 185, 60); eqStroke.Color = Color3.fromRGB(225, 185, 60)
-						else 
-							eqBtn.Text = "EQUIP"; eqBtn.TextColor3 = Color3.fromRGB(245, 245, 245); eqStroke.Color = Color3.fromRGB(70, 70, 80) 
-						end
-
-						if not hasWep and sData.Weapon then
-							eqBtn.Text = "LOCKED"; eqBtn.TextColor3 = Color3.fromRGB(100, 100, 100); eqStroke.Color = Color3.fromRGB(70, 70, 80)
-						else
-							-- OPTIMISTIC UI OVERLAY
-							local ActionsOverlay = Instance.new("Frame", sCard)
-							ActionsOverlay.Size = UDim2.new(1, 0, 1, 0); ActionsOverlay.BackgroundColor3 = Color3.fromRGB(18, 18, 22); ActionsOverlay.BackgroundTransparency = 0.05; ActionsOverlay.Visible = false; ActionsOverlay.ZIndex = 10; ActionsOverlay.Active = true; ActionsOverlay.BorderSizePixel = 0
-
-							local actLayout = Instance.new("UIListLayout", ActionsOverlay); actLayout.FillDirection = Enum.FillDirection.Horizontal; actLayout.Padding = UDim.new(0, 8); actLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; actLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-							local closeBtn = CreateSharpButton(ActionsOverlay, "X", UDim2.new(0, 30, 0, 30), Enum.Font.GothamBlack, 12); closeBtn.ZIndex = 11; closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-							closeBtn.MouseButton1Click:Connect(function() ActionsOverlay.Visible = false end)
-
-							for i = 1, 4 do
-								local slotBtn = CreateSharpButton(ActionsOverlay, "SLOT " .. i, UDim2.new(0.15, 0, 0, 35), Enum.Font.GothamBlack, 11); slotBtn.ZIndex = 11
-								slotBtn.MouseButton1Click:Connect(function()
-									Network.EquipItem:FireServer("Skill", sName, i)
-									player:SetAttribute("EquippedSkill_"..i, sName) -- Instant Feedback
-									ActionsOverlay.Visible = false
-									RefreshProfile()
-								end)
-							end
-
-							eqBtn.MouseButton1Click:Connect(function() 
-								if ActionsOverlay.Visible then ActionsOverlay.Visible = false else
-									for _, c in ipairs(SubTabs["Skills"]:GetChildren()) do if c:IsA("Frame") then local ov = c:FindFirstChildOfClass("Frame"); if ov then ov.Visible = false end end end
-									ActionsOverlay.Visible = true 
-								end
-							end) 
-						end
-					end
-				end
-			end
-			task.delay(0.05, function() SubTabs["Skills"].CanvasSize = UDim2.new(0, 0, 0, (sOrderCount * 110)) end)
-		end
-
-		-- [[ FIXED INVENTORY BUILDER ]]
 		for _, child in ipairs(InvGrid:GetChildren()) do 
 			if child.Name == "ItemCard" then child:Destroy() end 
 		end
@@ -586,6 +426,7 @@ function ProfileTab.Initialize(parentFrame, tooltipMgr)
 
 		local layoutOrderCounter = 1
 		for _, item in ipairs(inventoryItems) do
+
 			local card = CreateGrimPanel(InvGrid)
 			card.Name = "ItemCard" 
 			card.Size = UDim2.new(0, 76, 0, 76); card.LayoutOrder = layoutOrderCounter; layoutOrderCounter += 1
