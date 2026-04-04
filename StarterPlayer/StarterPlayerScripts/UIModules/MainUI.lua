@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: MainUI
 local MainUI = {}
 
@@ -17,22 +16,22 @@ local TabContainers = {}
 local CurrentOpenTab = nil
 
 -- Global Currency Trackers
-local lblElo, lblPrestige, lblDews, lblXP
+local lblElo, lblPrestige, lblDews, lblXP, lblTitanXP
 local player = Players.LocalPlayer
 
 local function BuildEnvironment(onComplete)
 	local BGFrame = Instance.new("Frame", MasterGui)
 	BGFrame.Name = "TexturedBackground"
 	BGFrame.Size = UDim2.new(1, 0, 1, 0)
-	BGFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14) -- Dark backdrop
+	BGFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
 	BGFrame.ZIndex = -10
 
 	local Texture = Instance.new("ImageLabel", BGFrame)
 	Texture.Size = UDim2.new(1, 0, 1, 0)
 	Texture.BackgroundTransparency = 1
-	Texture.Image = "rbxassetid://13467475151" -- Your dark background image ID
+	Texture.Image = "rbxassetid://13467475151" 
 	Texture.ImageTransparency = 0.50
-	Texture.ScaleType = Enum.ScaleType.Crop -- Forces it to spread across the entire background
+	Texture.ScaleType = Enum.ScaleType.Crop 
 	Texture.ZIndex = -9
 
 	if onComplete then onComplete() end
@@ -74,7 +73,7 @@ local function BuildMasterWindow()
 	WindowTitle.Position = UDim2.new(0, 25, 0, 0)
 	WindowTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- Universal Close Button (X)
+	-- Universal Close Button
 	local CloseBtn = Instance.new("TextButton", Header)
 	CloseBtn.Size = UDim2.new(0, 40, 0, 40)
 	CloseBtn.Position = UDim2.new(1, -10, 0.5, 0)
@@ -96,9 +95,8 @@ local function BuildMasterWindow()
 		MasterWindow.Visible = false
 	end)
 
-	-- Stats anchored to the right (pushed left to make room for the X)
 	local StatsContainer = Instance.new("Frame", Header)
-	StatsContainer.Size = UDim2.new(0.65, 0, 1, 0)
+	StatsContainer.Size = UDim2.new(0.70, 0, 1, 0)
 	StatsContainer.Position = UDim2.new(1, -65, 0, 0)
 	StatsContainer.AnchorPoint = Vector2.new(1, 0)
 	StatsContainer.BackgroundTransparency = 1
@@ -107,25 +105,26 @@ local function BuildMasterWindow()
 	statLayout.FillDirection = Enum.FillDirection.Horizontal
 	statLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	statLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	statLayout.Padding = UDim.new(0, 12)
+	statLayout.Padding = UDim.new(0, 8)
 
 	local function CreateTopBox(title, hexColor)
 		local box = Instance.new("Frame", StatsContainer)
-		box.Size = UDim2.new(0, 140, 0, 36)
+		box.Size = UDim2.new(0, 130, 0, 36)
 		box.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 		local bStroke = Instance.new("UIStroke", box)
 		bStroke.Color = Color3.fromRGB(70, 70, 80)
 		bStroke.Thickness = 2
 
-		local tLbl = UIHelpers.CreateLabel(box, title, UDim2.new(0.5, -5, 1, 0), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 11)
-		tLbl.Position = UDim2.new(0, 10, 0, 0); tLbl.TextXAlignment = Enum.TextXAlignment.Left
+		local tLbl = UIHelpers.CreateLabel(box, title, UDim2.new(0.5, -5, 1, 0), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 10)
+		tLbl.Position = UDim2.new(0, 5, 0, 0); tLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-		local vLbl = UIHelpers.CreateLabel(box, "0", UDim2.new(0.5, -10, 1, 0), Enum.Font.GothamBlack, Color3.fromHex(hexColor:gsub("#","")), 15)
+		local vLbl = UIHelpers.CreateLabel(box, "0", UDim2.new(0.5, -5, 1, 0), Enum.Font.GothamBlack, Color3.fromHex(hexColor:gsub("#","")), 13)
 		vLbl.Position = UDim2.new(0.5, 0, 0, 0); vLbl.TextXAlignment = Enum.TextXAlignment.Right
 		return vLbl
 	end
 
 	lblXP = CreateTopBox("XP", "#55FF55")
+	lblTitanXP = CreateTopBox("TITAN XP", "#FF5555")
 	lblDews = CreateTopBox("DEWS", "#FF88FF")
 	lblPrestige = CreateTopBox("PRESTIGE", "#FFD700")
 	lblElo = CreateTopBox("ELO RATING", "#55AAFF")
@@ -136,8 +135,13 @@ local function BuildMasterWindow()
 		lblElo.Text = tostring((ls and ls:FindFirstChild("Elo")) and ls.Elo.Value or 1000)
 		lblDews.Text = tostring(player:GetAttribute("Dews") or 0)
 		lblXP.Text = tostring(player:GetAttribute("XP") or 0)
+		lblTitanXP.Text = tostring(player:GetAttribute("TitanXP") or 0)
 	end
-	player.AttributeChanged:Connect(function(a) if a == "Dews" or a == "XP" then UpdateCurrencies() end end)
+
+	player.AttributeChanged:Connect(function(a) 
+		if a == "Dews" or a == "XP" or a == "TitanXP" then UpdateCurrencies() end 
+	end)
+
 	task.spawn(function()
 		local ls = player:WaitForChild("leaderstats", 10)
 		if ls then
@@ -153,7 +157,7 @@ local function BuildMasterWindow()
 	ContentArea.Position = UDim2.new(0, 0, 0, 60)
 	ContentArea.BackgroundTransparency = 1
 
-	local tabs = {"HOME", "PROFILE", "EXPEDITIONS", "SQUADS", "SUPPLY_FORGE"}
+	local tabs = {"HOME", "PROFILE", "EXPEDITIONS", "SQUADS", "SUPPLY_FORGE", "REGIMENTS"}
 	for _, tabName in ipairs(tabs) do
 		local tabFrame = Instance.new("Frame", ContentArea)
 		tabFrame.Name = tabName
@@ -177,7 +181,6 @@ local function BuildMasterWindow()
 		hsLayout.FillDirection = Enum.FillDirection.Horizontal
 		hsLayout.Padding = UDim.new(0, 20)
 
-		-- Left Column: Image & Changelog
 		local hLeft = Instance.new("Frame", hSplit)
 		hLeft.Size = UDim2.new(0.35, 0, 1, 0)
 		hLeft.BackgroundTransparency = 1
@@ -185,7 +188,7 @@ local function BuildMasterWindow()
 		local GameIcon = Instance.new("ImageLabel", hLeft)
 		GameIcon.Size = UDim2.new(1, 0, 0.45, 0)
 		GameIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-		GameIcon.Image = "rbxassetid://100826303284945" -- Place your Game Icon ID here
+		GameIcon.Image = "rbxassetid://100826303284945" 
 		GameIcon.ScaleType = Enum.ScaleType.Crop
 		local giStroke = Instance.new("UIStroke", GameIcon)
 		giStroke.Color = UIHelpers.Colors.Gold
@@ -203,14 +206,13 @@ local function BuildMasterWindow()
 		clTitle.Position = UDim2.new(0, 10, 0, 10)
 		clTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-		local clText = UIHelpers.CreateLabel(ChangeLogBox, "<b>v1.5.0 - The Global Update</b>\n\n• Added Strike Squads & Global Leaderboards.\n• Overhauled Market & Forge UI.\n• New Active Forging Minigame.\n• New Combat Interface Overlay.\n\n<b>ACTIVE CODES:</b>\n[MULTIPLAYERPART2]\n[NIGHTMAREMODE]\n[BUGFIX]", UDim2.new(1, -20, 1, -50), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 14)
+		local clText = UIHelpers.CreateLabel(ChangeLogBox, "<b>v1.5.0 - The Global Update</b>\n\n• Added Strike Squads & Global Leaderboards.\n• Overhauled Market & Forge UI.\n• Added Item Locking & Auto-Sell.\n• Dedicated Regiments Tab.\n\n<b>ACTIVE CODES:</b>\n[MULTIPLAYERPART2]\n[NIGHTMAREMODE]\n[BUGFIX]", UDim2.new(1, -20, 1, -50), Enum.Font.GothamMedium, UIHelpers.Colors.TextWhite, 14)
 		clText.Position = UDim2.new(0, 10, 0, 45)
 		clText.TextXAlignment = Enum.TextXAlignment.Left
 		clText.TextYAlignment = Enum.TextYAlignment.Top
 		clText.RichText = true
 		clText.TextWrapped = true
 
-		-- Right Column: Multi-tab Leaderboard
 		local hRight = Instance.new("Frame", hSplit)
 		hRight.Size = UDim2.new(0.65, -20, 1, 0)
 		hRight.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
@@ -295,7 +297,6 @@ local function BuildMasterWindow()
 			btn.MouseButton1Click:Connect(function() FetchLeaderboard(tName) end)
 		end
 
-		-- Trigger Default Leaderboard Load
 		FetchLeaderboard("PRESTIGE")
 	end
 	BuildHomeTab()
@@ -322,7 +323,8 @@ local function BuildMasterWindow()
 		{Name = "ATTRIBUTES", Module = "StatsTab"},
 		{Name = "SKILLS", Module = "SkillsTab"}, 
 		{Name = "PRESTIGE", Module = "PrestigeTab"},
-		{Name = "INHERITANCE", Module = "InheritTab"}
+		{Name = "INHERITANCE", Module = "InheritTab"},
+		{Name = "BOUNTIES", Module = "BountiesTab"} 
 	}
 
 	local activeSubFrames = {}
@@ -330,11 +332,11 @@ local function BuildMasterWindow()
 
 	for i, tabData in ipairs(subTabs) do
 		local btn = Instance.new("TextButton", pSubNav)
-		btn.Size = UDim2.new(0, 130, 0, 30)
+		btn.Size = UDim2.new(0, 115, 0, 30)
 		btn.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
 		btn.Font = Enum.Font.GothamBold
 		btn.Text = tabData.Name
-		btn.TextSize = 12
+		btn.TextSize = 11
 		btn.TextColor3 = UIHelpers.Colors.TextMuted
 		local stroke = Instance.new("UIStroke", btn)
 		stroke.Color = UIHelpers.Colors.BorderMuted
@@ -381,10 +383,14 @@ local function BuildMasterWindow()
 		local SFMod = require(script.Parent:WaitForChild("SupplyForgeTab"))
 		if SFMod.Initialize then SFMod.Initialize(TabContainers["SUPPLY_FORGE"]) end
 	end)
+
+	task.spawn(function()
+		local RegMod = require(script.Parent:WaitForChild("RegimentsTab"))
+		if RegMod.Initialize then RegMod.Initialize(TabContainers["REGIMENTS"]) end
+	end)
 end
 
 local function OpenMasterTab(tabName, displayTitle)
-	-- If they click the same active tab on the dock, let's close the window
 	if CurrentOpenTab == tabName and MasterWindow.Visible then
 		CurrentOpenTab = nil
 		local t = TweenService:Create(WindowScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
@@ -394,7 +400,6 @@ local function OpenMasterTab(tabName, displayTitle)
 		return
 	end
 
-	-- Swap the view to the clicked tab
 	for name, frame in pairs(TabContainers) do frame.Visible = (name == tabName) end
 	CurrentOpenTab = tabName
 	if WindowTitle then WindowTitle.Text = displayTitle end
@@ -407,7 +412,7 @@ end
 
 local function BuildBottomBar()
 	local Dock = Instance.new("Frame", MasterGui)
-	Dock.Size = UDim2.new(0, 320, 0, 70) 
+	Dock.Size = UDim2.new(0, 390, 0, 70) 
 	Dock.AnchorPoint = Vector2.new(0.5, 1)
 	Dock.Position = UDim2.new(0.5, 0, 1, -20)
 
@@ -426,12 +431,40 @@ local function BuildBottomBar()
 		{Id = "PROFILE", Title = "OPERATIVE PROFILE", Icon = "rbxassetid://100709766417970"}, 
 		{Id = "EXPEDITIONS", Title = "COMBAT DEPLOYMENT", Icon = "rbxassetid://115407261158495"},  
 		{Id = "SQUADS", Title = "STRIKE SQUADS COMMAND", Icon = "rbxassetid://111674249930782"}, 
-		{Id = "SUPPLY_FORGE", Title = "MARKET & FORGERY", Icon = "rbxassetid://108619507999123"}  
+		{Id = "SUPPLY_FORGE", Title = "MARKET & FORGERY", Icon = "rbxassetid://108619507999123"},
+		{Id = "REGIMENTS", Title = "REGIMENT HEADQUARTERS", Icon = "rbxassetid://74069077964164"} 
 	}
 
 	for _, btnData in ipairs(dockButtons) do
 		local btn = UIHelpers.CreateIconButton(Dock, btnData.Icon, UDim2.new(0, 50, 0, 50))
 		btn.MouseButton1Click:Connect(function() OpenMasterTab(btnData.Id, btnData.Title) end)
+
+		-- [[ THE FIX: Dynamically update the Regiment Dock Icon based on player's pledged faction ]]
+		if btnData.Id == "REGIMENTS" then
+			local function UpdateRegimentIcon()
+				local currentReg = player:GetAttribute("Regiment") or "Cadet Corps"
+				local hasRegData, regDataModule = pcall(function() return require(game.ReplicatedStorage:WaitForChild("RegimentData")) end)
+				local newIcon = "rbxassetid://74069077964164" -- Default Placeholder
+
+				if hasRegData and regDataModule and regDataModule.Regiments[currentReg] then
+					newIcon = regDataModule.Regiments[currentReg].Icon
+				end
+
+				-- Safely find the image inside the generated UIHelper button
+				if btn:IsA("ImageButton") or btn:IsA("ImageLabel") then
+					btn.Image = newIcon
+				else
+					local imgChild = btn:FindFirstChildOfClass("ImageLabel")
+					if imgChild then imgChild.Image = newIcon end
+				end
+			end
+
+			-- Listen to changes and apply initially
+			player.AttributeChanged:Connect(function(attr)
+				if attr == "Regiment" then UpdateRegimentIcon() end
+			end)
+			UpdateRegimentIcon()
+		end
 	end
 end
 
@@ -441,13 +474,11 @@ function MainUI.Initialize(masterScreenGui)
 	BuildMasterWindow()
 	BuildBottomBar()
 
-	-- [[ INJECT COMBAT OVERLAY SYSTEM ]]
 	task.spawn(function()
 		local CombatMod = require(script.Parent:WaitForChild("CombatUI"))
 		if CombatMod.Initialize then CombatMod.Initialize(MasterGui) end
 	end)
 
-	-- Pop open the Home Tab automatically as soon as the UI loads
 	OpenMasterTab("HOME", "COMMAND CENTER")
 end
 
