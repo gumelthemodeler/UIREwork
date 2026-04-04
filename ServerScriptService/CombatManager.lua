@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EnemyData = require(ReplicatedStorage:WaitForChild("EnemyData"))
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
 local SkillData = require(ReplicatedStorage:WaitForChild("SkillData"))
+local ClanData = require(ReplicatedStorage:WaitForChild("ClanData"))
 local CombatCore = require(script.Parent:WaitForChild("CombatCore"))
 local LootManager = require(script.Parent:WaitForChild("LootManager")) 
 
@@ -44,19 +45,19 @@ local function GetTemplate(partData, templateName)
 end
 
 local function GetHPScale(targetPart, prestige)
-	local chapterScale = math.pow(1.25, targetPart - 1) 
-	local prestigeScale = math.pow(1.28, prestige) 
+	local chapterScale = math.pow(1.20, targetPart - 1) 
+	local prestigeScale = math.pow(1.25, prestige) 
 	return chapterScale * prestigeScale
 end
 
 local function GetDmgScale(targetPart, prestige)
-	local chapterScale = math.pow(1.10, targetPart - 1) 
-	local prestigeScale = math.pow(1.12, prestige) 
+	local chapterScale = math.pow(1.15, targetPart - 1) 
+	local prestigeScale = math.pow(1.15, prestige) 
 	return chapterScale * prestigeScale
 end
 
 local function GetSpdScale(targetPart, prestige)
-	return math.pow(1.05, targetPart - 1) * math.pow(1.06, prestige)
+	return 1.0 + (math.pow(targetPart, 0.5) * 0.1) + (math.pow(prestige, 0.6) * 0.2)
 end
 
 local function GetActualStyle(plr)
@@ -194,9 +195,11 @@ local function StartBattle(player, encounterType, requestedPartId)
 	local awakenedStats = ParseAwakenedStats(combinedAwakenedString)
 
 	local clanName = player:GetAttribute("Clan") or "None"
+	local isAwakenedClan = string.find(tostring(clanName or ""), "Awakened") ~= nil
+	local cStats = ClanData.GetClanStats(clanName, isAwakenedClan, player:GetAttribute("Titan"), false)
 
 	local pMaxHP = ((player:GetAttribute("Health") or 10) + (wpnBonus.Health or 0) + (accBonus.Health or 0)) * 10
-	pMaxHP = pMaxHP + awakenedStats.HpBonus
+	pMaxHP = math.floor((pMaxHP + awakenedStats.HpBonus) * cStats.HpMult)
 
 	local pMaxGas = ((player:GetAttribute("Gas") or 10) + (wpnBonus.Gas or 0) + (accBonus.Gas or 0)) * 10
 	pMaxGas = pMaxGas + awakenedStats.GasBonus
@@ -230,24 +233,21 @@ local function StartBattle(player, encounterType, requestedPartId)
 		if encounterType == "EngageWorldBoss" then
 			groupMult = math.clamp(#Players:GetPlayers(), 1, 15)
 		elseif encounterType == "EngageRaid" then
-			local partyId = player:GetAttribute("PartyID")
-			if partyId then
-				local pCount = 0
-				for _, p in ipairs(Players:GetPlayers()) do
-					if p:GetAttribute("PartyID") == partyId then pCount += 1 end
-				end
-				groupMult = math.clamp(pCount, 1, 4)
+			local getPartyFunc = Network:FindFirstChild("GetPlayerParty")
+			if getPartyFunc then
+				local partyData = getPartyFunc:Invoke(player)
+				if partyData and partyData.Members then groupMult = #partyData.Members end
 			end
 		end
 
 		local baseDifficulty = 1.0
-		if encounterType == "EngageWorldBoss" then baseDifficulty = 2.5
-		elseif encounterType == "EngageNightmare" then baseDifficulty = 1.8
+		if encounterType == "EngageWorldBoss" then baseDifficulty = 2.0
+		elseif encounterType == "EngageNightmare" then baseDifficulty = 1.5
 		elseif encounterType == "EngageRaid" then baseDifficulty = 1.2 end
 
-		local effectivePlayerDmg = math.max(10, pTotalStr * (awakenedStats.DmgMult or 1.0) * (1 + (prestige * 0.15)))
-		local bossHPRatio = math.clamp(eTemplate.Health / 5000, 0.5, 10.0)
-		eHP = math.floor(effectivePlayerDmg * 15 * baseDifficulty * groupMult * bossHPRatio)
+		local effectivePlayerDmg = math.max(10, pTotalStr * (awakenedStats.DmgMult or 1.0) * (1 + (prestige * 0.1)))
+		local bossHPRatio = math.clamp(eTemplate.Health / 4000, 0.5, 2.5) 
+		eHP = math.floor(effectivePlayerDmg * 15 * baseDifficulty * math.pow(groupMult, 0.75) * bossHPRatio)
 
 		if eGateType == "Steam" then
 			eGateHP = eTemplate.GateHP 
@@ -256,12 +256,12 @@ local function StartBattle(player, encounterType, requestedPartId)
 			eGateHP = math.floor(eHP * gateRatio)
 		end
 
-		local effectivePlayerDurability = pMaxHP + (pTotalDef * 3)
-		local bossDmgRatio = math.clamp(eTemplate.Strength / 200, 0.5, 4.0)
-		eStr = math.floor((effectivePlayerDurability / 6) * baseDifficulty * bossDmgRatio)
+		local effectivePlayerDurability = pMaxHP + (pTotalDef * 2)
+		local bossDmgRatio = math.clamp(eTemplate.Strength / 300, 0.5, 2.0) 
+		eStr = math.floor((effectivePlayerDurability / 8) * baseDifficulty * bossDmgRatio)
 
-		local bossDefRatio = math.clamp(eTemplate.Defense / 100, 0.5, 4.0)
-		eDef = math.floor(pTotalStr * 0.8 * bossDefRatio * baseDifficulty)
+		local bossDefRatio = math.clamp(eTemplate.Defense / 150, 0.5, 2.0)
+		eDef = math.floor(pTotalStr * 0.5 * bossDefRatio * baseDifficulty)
 		eSpd = math.floor(pTotalSpd * 1.1)
 
 		logFlavor = logFlavor .. "\n<font color='#AAAAAA'>[Dynamic Encounter: Boss attuned to Group Size " .. groupMult .. "x]</font>"
@@ -572,6 +572,15 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	end
 
 	if actionType == "MinigameResult" then
+		local battle = ActiveBattles[player.UserId]
+		if not battle or not battle.Enemy.IsMinigame then return end
+
+		if actionData.Success then
+			ProcessEnemyDeath(player, battle)
+		else
+			CombatUpdate:FireClient(player, "Defeat", {Battle = battle})
+			ActiveBattles[player.UserId] = nil
+		end
 		return
 	end
 
@@ -596,9 +605,9 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	end
 
 	local sRange = skill.Range or "Close"
+	local wrongRange = false
 	if sRange ~= "Any" and sRange ~= battle.Context.Range then
-		CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#FF5555'>You cannot use " .. skillName .. " at this range!</font>", DidHit = false, ShakeType = "None"})
-		return
+		wrongRange = true
 	end
 
 	battle.IsProcessing = true
@@ -694,6 +703,12 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 				CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#55FF55'>You fired your ODM gear and closed the gap to MELEE RANGE!</font>", DidHit = false, ShakeType = "None"})
 				task.wait(turnDelay)
 				continue
+			end
+
+			if wrongRange then
+				CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#FF5555'>You attempted to use " .. string.upper(skillName) .. " at the wrong range and left yourself wide open!</font>", DidHit = false, ShakeType = "None"})
+				task.wait(turnDelay)
+				continue 
 			end
 
 			if skill.GasCost then combatant.Gas = math.max(0, combatant.Gas - skill.GasCost) end
@@ -852,17 +867,6 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	else
 		if not battle.Player.Statuses or not battle.Player.Statuses["Transformed"] then battle.Player.TitanEnergy = math.min(100, (battle.Player.TitanEnergy or 0) + 15) end
 		battle.IsProcessing = false
-
-		-- [[ THE FIX: Intercept Update to clear custom layout duplication before pushing to client UI ]]
-		local function UpdateActionGrid(battleState)
-			local p = battleState.Player
-			local pClan = p.Clan or "None"
-			local isTransformed = p.Statuses and p.Statuses["Transformed"]
-
-			-- Only necessary if we were directly sending the grid from server, but the UI is built locally. 
-			-- We will instead just fire the update to trigger the local layout generation.
-		end
-
 		CombatUpdate:FireClient(player, "Update", {Battle = battle})
 	end
 end)
