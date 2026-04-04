@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: ExpeditionsTab
 local ExpeditionsTab = {}
 
@@ -9,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Network = ReplicatedStorage:WaitForChild("Network")
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 local EnemyData = require(ReplicatedStorage:WaitForChild("EnemyData"))
+local AFKTab = require(script.Parent:WaitForChild("AFKTab"))
 
 local player = Players.LocalPlayer
 
@@ -85,12 +85,16 @@ function ExpeditionsTab.Initialize(parentFrame)
 	BackBtn.Visible = false
 
 	local Pages = {}
+	local FetchLiveMatches -- Forward declaration for PvP
+
 	local function ShowPage(pageName, titleText)
 		for name, frame in pairs(Pages) do
 			frame.Visible = (name == pageName)
 		end
 		Title.Text = titleText
 		BackBtn.Visible = (pageName ~= "Main")
+
+		if pageName == "PvP" and FetchLiveMatches then FetchLiveMatches() end
 	end
 
 	BackBtn.MouseButton1Click:Connect(function()
@@ -134,8 +138,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 
 		local t1 = TweenService:Create(DeployOverlay, TweenInfo.new(0.5), {BackgroundTransparency = 1})
 		local t2 = TweenService:Create(dStatus, TweenInfo.new(0.5), {TextTransparency = 1})
-		t1:Play()
-		t2:Play()
+		t1:Play(); t2:Play()
 
 		t1.Completed:Wait()
 		DeployOverlay.Visible = false
@@ -177,9 +180,7 @@ function ExpeditionsTab.Initialize(parentFrame)
 		lblTitle.Position = UDim2.new(0, 10, 1, -70)
 		lblTitle.TextXAlignment = Enum.TextXAlignment.Left
 		lblTitle.TextScaled = true
-		local tCon = Instance.new("UITextSizeConstraint", lblTitle)
-		tCon.MaxTextSize = 18
-		tCon.MinTextSize = 12
+		local tCon = Instance.new("UITextSizeConstraint", lblTitle); tCon.MaxTextSize = 18; tCon.MinTextSize = 12
 		lblTitle.ZIndex = 3
 
 		local lblDesc = UIHelpers.CreateLabel(cardBtn, desc, UDim2.new(1, -20, 0, 35), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 12)
@@ -226,11 +227,10 @@ function ExpeditionsTab.Initialize(parentFrame)
 		GridContainer.CanvasSize = UDim2.new(0, 0, 0, gridLayout.AbsoluteContentSize.Y + 40)
 	end)
 
-	-- [[ THE FIX: Updated Event payloads to exactly match ServerScript requirements ]]
 	local cPart = player:GetAttribute("CurrentPart") or 1
 	local cMiss = player:GetAttribute("CurrentMission") or 1
 	local campaignDescLbl = CreateModeCard(GridContainer, "STORY CAMPAIGN", string.format("Part %d - Mission %d\nProgress through the main storyline.", cPart, cMiss), DECALS.Campaign, 1, function() 
-		InitiateDeployment("CombatAction", "EngageStory") -- Was "EngageCampaign"
+		InitiateDeployment("CombatAction", "EngageStory")
 	end)
 
 	player.AttributeChanged:Connect(function(attr)
@@ -247,9 +247,23 @@ function ExpeditionsTab.Initialize(parentFrame)
 	CreateModeCard(GridContainer, "WORLD BOSSES", "A catastrophic threat has appeared. Intercept immediately.", DECALS.WorldBoss, 4, function() ShowPage("WorldBoss", "WORLD BOSSES") end)
 	CreateModeCard(GridContainer, "NIGHTMARE HUNTS", "Face corrupted Titans to obtain legendary Cursed Weapons.", DECALS.Nightmare, 5, function() ShowPage("Nightmare", "NIGHTMARE HUNTS") end)
 	CreateModeCard(GridContainer, "PVP ARENA", "Test your ODM combat skills against other players.", DECALS.PvP, 6, function() ShowPage("PvP", "PVP ARENA") end)
-	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send scouts into the wilderness to gather resources while you rest.", DECALS.AFK, 7, function() 
-		print("Deploy AFK Setup...") 
+
+	CreateModeCard(GridContainer, "AFK EXPEDITIONS", "Send out scout regiments to gather resources over long periods.", DECALS.AFK, 7, function() 
+		ShowPage("AFK", "AFK EXPEDITIONS")
 	end)
+
+	-- ==========================================
+	-- PAGE: AFK EXPEDITIONS (INJECTED MODULE)
+	-- ==========================================
+	local AFKPage = Instance.new("Frame", MissionsPanel)
+	AFKPage.Size = UDim2.new(1, 0, 1, -60)
+	AFKPage.Position = UDim2.new(0, 0, 0, 50)
+	AFKPage.BackgroundTransparency = 1
+	AFKPage.Visible = false
+	Pages["AFK"] = AFKPage
+
+	-- We initialize the module directly inside the generated page
+	AFKTab.Initialize(AFKPage, InitiateDeployment)
 
 
 	-- ==========================================
@@ -348,7 +362,6 @@ function ExpeditionsTab.Initialize(parentFrame)
 		local icon = EnemyData.BossIcons and EnemyData.BossIcons[id] or DECALS.Raid
 
 		CreateModeCard(RaidPage, string.upper(boss.Name), "Requires a Party. Coordinate strikes and manage aggro.", icon, i, function()
-			-- Note: Raids use RaidAction instead of CombatAction in your backend structure
 			InitiateDeployment("RaidAction", "DeployParty", {RaidId = id})
 		end)
 	end
@@ -395,6 +408,10 @@ function ExpeditionsTab.Initialize(parentFrame)
 	PvPMatchesTitle.Position = UDim2.new(0, 0, 0, 170)
 	PvPMatchesTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+	local RefreshBtn = CreateSharpButton(PvPPage, "REFRESH", UDim2.new(0, 80, 0, 24), Enum.Font.GothamBold, 11)
+	RefreshBtn.Position = UDim2.new(1, 0, 0, 173)
+	RefreshBtn.AnchorPoint = Vector2.new(1, 0)
+
 	local SpectateScroll = Instance.new("ScrollingFrame", PvPPage)
 	SpectateScroll.Size = UDim2.new(1, 0, 1, -210)
 	SpectateScroll.Position = UDim2.new(0, 0, 0, 210)
@@ -409,7 +426,41 @@ function ExpeditionsTab.Initialize(parentFrame)
 		SpectateScroll.CanvasSize = UDim2.new(0, 0, 0, specLayout.AbsoluteContentSize.Y + 20)
 	end)
 
-	local phLabel = UIHelpers.CreateLabel(SpectateScroll, "Fetching live matches...", UDim2.new(1, 0, 0, 50), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
+	FetchLiveMatches = function()
+		for _, c in ipairs(SpectateScroll:GetChildren()) do if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end end
+
+		local loadingLbl = UIHelpers.CreateLabel(SpectateScroll, "Scanning for live matches...", UDim2.new(1, 0, 0, 50), Enum.Font.GothamBold, UIHelpers.Colors.Gold, 14)
+
+		task.spawn(function()
+			local matches = Network:WaitForChild("PvPAction"):InvokeServer("GetLiveMatches")
+			if loadingLbl and loadingLbl.Parent then loadingLbl:Destroy() end
+
+			if type(matches) ~= "table" or #matches == 0 then
+				UIHelpers.CreateLabel(SpectateScroll, "No active ranked matches at this time.", UDim2.new(1, 0, 0, 50), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
+				return
+			end
+
+			for _, matchData in ipairs(matches) do
+				local mCard = Instance.new("Frame", SpectateScroll)
+				mCard.Size = UDim2.new(1, -10, 0, 60)
+				mCard.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+				Instance.new("UIStroke", mCard).Color = UIHelpers.Colors.BorderMuted
+
+				local vsLbl = UIHelpers.CreateLabel(mCard, (matchData.Player1 or "Fighter") .. "  VS  " .. (matchData.Player2 or "Fighter"), UDim2.new(0.6, 0, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 16)
+				vsLbl.Position = UDim2.new(0, 15, 0, 0); vsLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+				local specBtn = CreateSharpButton(mCard, "SPECTATE", UDim2.new(0, 120, 0, 36), Enum.Font.GothamBlack, 12)
+				specBtn.Position = UDim2.new(1, -15, 0.5, 0); specBtn.AnchorPoint = Vector2.new(1, 0.5)
+				specBtn.TextColor3 = UIHelpers.Colors.Gold
+
+				specBtn.MouseButton1Click:Connect(function()
+					Network:WaitForChild("PvPAction"):FireServer("SpectateMatch", matchData.MatchId)
+				end)
+			end
+		end)
+	end
+
+	RefreshBtn.MouseButton1Click:Connect(FetchLiveMatches)
 
 
 	-- ==========================================
