@@ -409,14 +409,19 @@ function CombatUI.Initialize(masterScreenGui)
 	ActionContainer.Position = UDim2.new(0, 20, 1, -215)
 	ActionContainer.BackgroundTransparency = 1
 
-	ActionGrid = Instance.new("Frame", ActionContainer)
+	ActionGrid = Instance.new("ScrollingFrame", ActionContainer)
 	ActionGrid.Size = UDim2.new(1, 0, 1, 0)
 	ActionGrid.BackgroundTransparency = 1
+	ActionGrid.ScrollBarThickness = 0
 	local acLayout = Instance.new("UIGridLayout", ActionGrid)
 	acLayout.CellSize = UDim2.new(0, 195, 0, 45)
 	acLayout.CellPadding = UDim2.new(0, 15, 0, 15)
 	acLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	acLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	acLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+	acLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		ActionGrid.CanvasSize = UDim2.new(0, 0, 0, acLayout.AbsoluteContentSize.Y + 10)
+	end)
 
 	TargetMenu = Instance.new("Frame", ActionContainer)
 	TargetMenu.Size = UDim2.new(1, 0, 1, -10)
@@ -603,6 +608,7 @@ function CombatUI.UpdateSkills()
 
 	local fallbacks = (currentRange == "Close") and defaultClose or defaultLong
 
+	-- 1. Standard Loadout Slots
 	for i = 1, 4 do
 		local skillName = player:GetAttribute("EquippedSkill_" .. i)
 		if isTransformed or not skillName or skillName == "" or skillName == "None" then
@@ -611,8 +617,20 @@ function CombatUI.UpdateSkills()
 
 		if skillName ~= "None" then
 			local cd = (pState and pState.Cooldowns and pState.Cooldowns[skillName]) or 0
-			local btnText = cd > 0 and (string.upper(skillName) .. " [" .. cd .. "]") or string.upper(skillName)
-			local btnColor = cd > 0 and "#555555" or "#DDDDDD"
+
+			local sData = SkillData.Skills[skillName]
+			local isWrongRange = sData and sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange
+
+			local btnText = string.upper(skillName)
+			local btnColor = "#DDDDDD"
+
+			if cd > 0 then
+				btnText = btnText .. " [" .. cd .. "]"
+				btnColor = "#555555"
+			elseif isWrongRange then
+				btnText = btnText .. " [OUT OF RANGE]"
+				btnColor = "#FFAA55"
+			end
 
 			local btn, stroke = CreateMinimalButton(ActionGrid, btnText, UDim2.new(0, 0, 0, 0), btnColor)
 
@@ -621,6 +639,7 @@ function CombatUI.UpdateSkills()
 				btn.TextColor3 = Color3.fromRGB(100, 100, 100)
 				stroke.Color = Color3.fromRGB(50, 50, 50)
 			else
+				if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
 				btn.MouseButton1Click:Connect(function()
 					if inputLocked then return end
 					if InstantSkills[skillName] then
@@ -638,6 +657,65 @@ function CombatUI.UpdateSkills()
 		end
 	end
 
+	-- 2. Innate Clan Skills (Dynamically Injected!)
+	local myClan = player:GetAttribute("Clan")
+	if myClan and myClan ~= "None" and not isTransformed then
+		local clanSkills = {}
+
+		for sName, sData in pairs(SkillData.Skills) do
+			if sData.Type == "Style" and sData.Requirement and sData.Requirement ~= "ODM" and sData.Requirement ~= "Ultrahard Steel Blades" and sData.Requirement ~= "Thunder Spears" and sData.Requirement ~= "Anti-Personnel" then
+				if string.find(myClan, sData.Requirement) then
+					table.insert(clanSkills, {Name = sName, Data = sData})
+				end
+			end
+		end
+
+		table.sort(clanSkills, function(a, b) return (a.Data.Order or 99) < (b.Data.Order or 99) end)
+
+		for _, cSkill in ipairs(clanSkills) do
+			local skillName = cSkill.Name
+			local sData = cSkill.Data
+			local cd = (pState and pState.Cooldowns and pState.Cooldowns[skillName]) or 0
+			local isWrongRange = sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange
+
+			-- Visual tag to let players know it's their Innate Clan Ability
+			local btnText = "[" .. string.upper(myClan) .. "] " .. string.upper(skillName)
+			local btnColor = "#CC44FF"
+
+			if cd > 0 then
+				btnText = btnText .. " [" .. cd .. "]"
+				btnColor = "#555555"
+			elseif isWrongRange then
+				btnText = btnText .. " [OUT OF RANGE]"
+				btnColor = "#FFAA55"
+			end
+
+			local btn, stroke = CreateMinimalButton(ActionGrid, btnText, UDim2.new(0, 0, 0, 0), btnColor)
+
+			if cd > 0 then
+				btn.Active = false
+				btn.TextColor3 = Color3.fromRGB(100, 100, 100)
+				stroke.Color = Color3.fromRGB(50, 50, 50)
+			else
+				if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
+				btn.MouseButton1Click:Connect(function()
+					if inputLocked then return end
+					if InstantSkills[skillName] then
+						inputLocked = true
+						for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+						UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
+						Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = skillName})
+					else
+						pendingSkillName = skillName
+						ActionGrid.Visible = false
+						TargetMenu.Visible = true
+					end
+				end)
+			end
+		end
+	end
+
+	-- 3. Universal Movement/Support Actions
 	local mBtn, _ = CreateMinimalButton(ActionGrid, "MANEUVER", UDim2.new(0, 0, 0, 0), "#55AAFF")
 	mBtn.MouseButton1Click:Connect(function() 
 		if not inputLocked then 
@@ -707,18 +785,6 @@ function CombatUI.UpdateSkills()
 				UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
 				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Eject"}) 
 			end 
-		end)
-	end
-
-	local myClan = player:GetAttribute("Clan")
-	if myClan and myClan ~= "None" then
-		local cBtn, _ = CreateMinimalButton(ActionGrid, "[" .. myClan:upper() .. "] INNATE", UDim2.new(0, 0, 0, 0), "#CC44FF")
-		cBtn.MouseButton1Click:Connect(function() 
-			if not inputLocked then
-				pendingSkillName = "Clan Innate"
-				ActionGrid.Visible = false
-				TargetMenu.Visible = true
-			end
 		end)
 	end
 
