@@ -52,7 +52,6 @@ local function BuildMasterWindow()
 	WindowScale = Instance.new("UIScale", MasterWindow)
 	WindowScale.Scale = 0
 
-	-- [[ FIXED GLOBAL HEADER: Matches Reference Image ]]
 	local Header = Instance.new("Frame", MasterWindow)
 	Header.Size = UDim2.new(1, 0, 0, 60)
 	Header.BackgroundColor3 = UIHelpers.Colors.Surface
@@ -93,11 +92,10 @@ local function BuildMasterWindow()
 		return vLbl
 	end
 
-	-- Ordered Right-to-Left based on layout logic
 	lblXP = CreateTopBox("XP", "#55FF55")
 	lblDews = CreateTopBox("DEWS", "#FF88FF")
 	lblPrestige = CreateTopBox("PRESTIGE", "#FFD700")
-	lblElo = CreateTopBox("ELO RATING", "#55AAFF") -- Reverted back to ELO as per your screenshot
+	lblElo = CreateTopBox("ELO RATING", "#55AAFF")
 
 	local function UpdateCurrencies()
 		local ls = player:FindFirstChild("leaderstats")
@@ -151,6 +149,7 @@ local function BuildMasterWindow()
 	local subTabs = {
 		{Name = "IDENTITY", Module = "ProfileTab"},
 		{Name = "ATTRIBUTES", Module = "StatsTab"},
+		{Name = "SKILLS", Module = "SkillsTab"}, 
 		{Name = "PRESTIGE", Module = "PrestigeTab"},
 		{Name = "INHERITANCE", Module = "InheritTab"}
 	}
@@ -159,7 +158,7 @@ local function BuildMasterWindow()
 	local subBtns = {}
 
 	for i, tabData in ipairs(subTabs) do
-		local btn, stroke = UIHelpers.CreateButton(pSubNav, tabData.Name, UDim2.new(0, 140, 0, 30), Enum.Font.GothamBold, 12)
+		local btn, stroke = UIHelpers.CreateButton(pSubNav, tabData.Name, UDim2.new(0, 130, 0, 30), Enum.Font.GothamBold, 12)
 		btn.TextColor3 = UIHelpers.Colors.TextMuted
 		stroke.Color = UIHelpers.Colors.BorderMuted
 
@@ -189,36 +188,26 @@ local function BuildMasterWindow()
 	subBtns["IDENTITY"].Btn.TextColor3 = UIHelpers.Colors.Gold
 	subBtns["IDENTITY"].Stroke.Color = UIHelpers.Colors.Gold
 
-	-- EXPEDITIONS TAB
-	local expTab = TabContainers["EXPEDITIONS"]
-	local CarouselScroll = Instance.new("ScrollingFrame", expTab)
-	CarouselScroll.Size = UDim2.new(1, -40, 1, -40)
-	CarouselScroll.Position = UDim2.new(0, 20, 0, 20)
-	CarouselScroll.BackgroundTransparency = 1
-	CarouselScroll.ScrollingDirection = Enum.ScrollingDirection.X
-	CarouselScroll.ScrollBarThickness = 6
-	CarouselScroll.BorderSizePixel = 0
-
-	local carouselLayout = Instance.new("UIListLayout", CarouselScroll)
-	carouselLayout.FillDirection = Enum.FillDirection.Horizontal
-	carouselLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	carouselLayout.Padding = UDim.new(0, 20)
-	carouselLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	carouselLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() CarouselScroll.CanvasSize = UDim2.new(0, carouselLayout.AbsoluteContentSize.X + 40, 0, 0) end)
-
-	UIHelpers.CreateTallCard(CarouselScroll, "CAMPAIGN", "Progress the main storyline and conquer the threat.", "rbxassetid://80153476985849", function() print("Deploy Campaign") end).LayoutOrder = 1
-	UIHelpers.CreateTallCard(CarouselScroll, "(AFK EXPEDITION)", "Send scouts into the wilderness to gather vital resources while you rest.", "rbxassetid://114506098039778", function() print("Deploy AFK") end).LayoutOrder = 2
-	UIHelpers.CreateTallCard(CarouselScroll, "NIGHTMARE HUNTS", "Face corrupted Titans to obtain legendary Cursed Weapons.", "rbxassetid://90132878979603", function() print("Deploy Nightmare") end).LayoutOrder = 3
-	UIHelpers.CreateTallCard(CarouselScroll, "THE PATHS", "Traverse the endless desert of Ymir to unlock stat points.", "rbxassetid://90938848776194", function() print("Deploy Paths") end).LayoutOrder = 4
+	-- [[ FIXED: EXPEDITIONS TAB MODULE INJECTED PROPERLY ]]
+	task.spawn(function()
+		local ExpMod = require(script.Parent:WaitForChild("ExpeditionsTab"))
+		if ExpMod.Initialize then
+			ExpMod.Initialize(TabContainers["EXPEDITIONS"])
+		end
+	end)
 
 	-- STRIKE SQUADS TAB
 	local squadsTab = TabContainers["SQUADS"]
 	UIHelpers.CreateLabel(squadsTab, "[ STRIKE SQUADS MANAGEMENT INJECTS HERE ]", UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.TextMuted, 24)
 
-	-- SUPPLY & FORGE TAB
+	-- [[ SUPPLY & FORGE TAB INJECTION ]]
 	local sfTab = TabContainers["SUPPLY_FORGE"]
-	UIHelpers.CreateLabel(sfTab, "[ SUPPLY & FORGE INJECTS HERE ]", UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, UIHelpers.Colors.TextMuted, 24)
+	task.spawn(function()
+		local SFMod = require(script.Parent:WaitForChild("SupplyForgeTab"))
+		if SFMod.Initialize then
+			SFMod.Initialize(sfTab)
+		end
+	end)
 end
 
 local function OpenMasterTab(tabName, displayTitle)
@@ -233,7 +222,6 @@ local function OpenMasterTab(tabName, displayTitle)
 
 	for name, frame in pairs(TabContainers) do frame.Visible = (name == tabName) end
 	CurrentOpenTab = tabName
-	-- Update the physical title label based on the tab
 	if WindowTitle then WindowTitle.Text = displayTitle end
 
 	if not MasterWindow.Visible then
