@@ -33,7 +33,6 @@ local function AbbreviateNumber(n)
 	return str .. (Suffixes[suffixIndex + 1] or "")
 end
 
--- [[ BULLETPROOF FALLBACKS ]]
 local function SafeGetStatCap(prestige)
 	if GameData and type(GameData.GetStatCap) == "function" then 
 		return GameData.GetStatCap(prestige) 
@@ -298,7 +297,7 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 			game.Debris:AddItem(fTxt, 0.6)
 		end
 
-		tBtn.MouseButton1Down:Connect(function()
+		local function TriggerTrain()
 			local currentPos = tBtn.Position
 			if isTitan then titanCombo += 1 else humanCombo += 1 end
 			local activeCombo = isTitan and titanCombo or humanCombo
@@ -314,10 +313,15 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 			local baseXP = 1 + (prestige * 50) + math.floor(totalStats / 4)
 			local xpGain = math.floor(baseXP * (1.0 + (activeCombo * 0.1)))
 
+			-- [[ THE FIX: Visually apply Double XP Gamepass so floating text matches server yield! ]]
+			if player:GetAttribute("HasDoubleXP") then xpGain *= 2 end
+
 			CreateFloatingText("+" .. xpGain .. (isTitan and " T-XP" or " XP"), Color3.fromRGB(100, 255, 100), currentPos)
 			tBtn.Position = UDim2.new(math.random(25, 75)/100, 0, math.random(30, 80)/100, 0)
 			Network.TrainAction:FireServer(activeCombo, isTitan)
-		end)
+		end
+
+		tBtn.MouseButton1Down:Connect(TriggerTrain)
 
 		missBtn.MouseButton1Down:Connect(function()
 			if isTitan and titanCombo > 0 then
@@ -328,6 +332,35 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 				task.delay(1.5, function() if humanCombo == 0 then comboLbl.Visible = false end end)
 			end
 		end)
+
+		-- [[ THE FIX: Fully Integrated Auto Train Gamepass Logic! ]]
+		if player:GetAttribute("HasAutoTrain") or player.UserId == 4068160397 then
+			local autoBtn = UIHelpers.CreateButton(box, "AUTO: OFF", UDim2.new(0, 90, 0, 25), Enum.Font.GothamBold, 11)
+			autoBtn.Position = UDim2.new(1, -100, 0, 12)
+			autoBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+			autoBtn.ZIndex = 5
+
+			local isAutoTraining = false
+			autoBtn.MouseButton1Down:Connect(function()
+				isAutoTraining = not isAutoTraining
+				autoBtn.Text = isAutoTraining and "AUTO: ON" or "AUTO: OFF"
+				autoBtn.TextColor3 = isAutoTraining and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+
+				if isAutoTraining then
+					task.spawn(function()
+						while isAutoTraining and (player:GetAttribute("HasAutoTrain") or player.UserId == 4068160397) do
+							if tBtn and tBtn.Parent then
+								TriggerTrain()
+							else
+								isAutoTraining = false
+							end
+							task.wait(0.6) 
+						end
+					end)
+				end
+			end)
+		end
+
 		return box
 	end
 
