@@ -1,6 +1,6 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: StatsTab
+-- @ScriptType: ModuleScript
 local StatsTab = {}
 
 local Players = game:GetService("Players")
@@ -33,20 +33,42 @@ local function AbbreviateNumber(n)
 	return str .. (Suffixes[suffixIndex + 1] or "")
 end
 
+-- [[ THE FIX 1: Decoupled math functions guarantee the UI never throws a 'nil' error during calculation ]]
+local function SafeGetStatCap(prestige)
+	return 100 + ((prestige or 0) * 10)
+end
+
+local function SafeCalculateStatCost(currentStat, baseStat, prestige)
+	local baseCost = 10
+	local growthFactor = 1.05
+	local prestigeMultiplier = math.max(0.1, 1 - ((prestige or 0) * 0.03))
+	local statDifference = math.max(0, (currentStat or 10) - (baseStat or 10))
+	return math.floor(baseCost * (growthFactor ^ statDifference) * prestigeMultiplier)
+end
+
+local function ParseStat(rawStat)
+	local val = tonumber(rawStat)
+	if val then return val end
+	if type(rawStat) == "string" and GameData.TitanRanks and GameData.TitanRanks[rawStat] then
+		return GameData.TitanRanks[rawStat]
+	end
+	return 10
+end
+
 local function GetCombinedBonus(statName)
 	local wpn = player:GetAttribute("EquippedWeapon") or "None"
 	local acc = player:GetAttribute("EquippedAccessory") or "None"
 	local style = player:GetAttribute("FightingStyle") or "None"
 	local bonus = 0
-	if ItemData.Equipment[wpn] and ItemData.Equipment[wpn].Bonus[statName] then bonus += ItemData.Equipment[wpn].Bonus[statName] end
-	if ItemData.Equipment[acc] and ItemData.Equipment[acc].Bonus[statName] then bonus += ItemData.Equipment[acc].Bonus[statName] end
+	if ItemData.Equipment and ItemData.Equipment[wpn] and ItemData.Equipment[wpn].Bonus and ItemData.Equipment[wpn].Bonus[statName] then bonus += ItemData.Equipment[wpn].Bonus[statName] end
+	if ItemData.Equipment and ItemData.Equipment[acc] and ItemData.Equipment[acc].Bonus and ItemData.Equipment[acc].Bonus[statName] then bonus += ItemData.Equipment[acc].Bonus[statName] end
 	if GameData.WeaponBonuses and GameData.WeaponBonuses[style] and GameData.WeaponBonuses[style][statName] then bonus += GameData.WeaponBonuses[style][statName] end
 	return bonus
 end
 
 local function GetUpgradeCosts(currentStat, cleanName, prestige)
-	local base = (prestige == 0) and (GameData.BaseStats[cleanName] or 10) or (prestige * 5)
-	return GameData.CalculateStatCost(currentStat, base, prestige)
+	local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+	return SafeCalculateStatCost(currentStat, base, prestige)
 end
 
 local function CreateStatRow(statName, parent, isTitan, layoutOrder, amtInput)
@@ -69,31 +91,46 @@ local function CreateStatRow(statName, parent, isTitan, layoutOrder, amtInput)
 		isUpgrading = true
 
 		local prestige = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Prestige") and player.leaderstats.Prestige.Value or 0
-		local statCap = GameData.GetStatCap(prestige)
-		local currentStat = player:GetAttribute(statName) or 10; if type(currentStat) == "string" then currentStat = GameData.TitanRanks[currentStat] or 10 end
+		local statCap = SafeGetStatCap(prestige)
 
-		local currentXP = isTitan and (player:GetAttribute("TitanXP") or 0) or (player:GetAttribute("XP") or 0)
+		local currentStat = ParseStat(player:GetAttribute(statName))
+		local currentXP = isTitan and (tonumber(player:GetAttribute("TitanXP")) or 0) or (tonumber(player:GetAttribute("XP")) or 0)
 		local cleanName = statName:gsub("_Val", ""):gsub("Titan_", "")
-		local base = (prestige == 0) and (GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+		local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
 
 		if currentStat >= statCap then isUpgrading = false; return end
 
 		local cost, added, simulatedXP = 0, 0, currentXP
-		local target = (amt == "MAX") and 9999 or amt
+		local target = (amt == "MAX") and 9999 or tonumber(amt) or 1
 
 		for i = 0, target - 1 do
 			if currentStat + added >= statCap then break end
-			local stepCost = GameData.CalculateStatCost(currentStat + added, base, prestige)
-			if simulatedXP >= stepCost then simulatedXP -= stepCost; cost += stepCost; added += 1 else break end
+			local stepCost = SafeCalculateStatCost(currentStat + added, base, prestige)
+			if simulatedXP >= stepCost then 
+				simulatedXP -= stepCost; cost += stepCost; added += 1 
+			else 
+				break 
+			end
 		end
 
+		-- [[ THE FIX 2: Chunk the MAX upgrades so the server doesn't reject massive single requests! ]]
 		if added > 0 then
-			Network:WaitForChild("UpgradeStat"):FireServer(statName, added)
-			if NotificationManager then NotificationManager.Show(cleanName:upper() .. " upgraded by +" .. added .. "!", "Success") end
+			task.spawn(function()
+				local remaining = added
+				while remaining > 0 do
+					local chunk = math.min(remaining, 50)
+					Network:WaitForChild("UpgradeStat"):FireServer(statName, chunk)
+					remaining -= chunk
+					if remaining > 0 then task.wait(0.05) end
+				end
+				if NotificationManager then NotificationManager.Show(cleanName:upper() .. " upgraded by +" .. added .. "!", "Success") end
+				task.wait(0.15)
+				isUpgrading = false
+			end)
 		else
 			if NotificationManager then NotificationManager.Show("Not enough XP!", "Error") end
+			isUpgrading = false
 		end
-		task.wait(0.15); isUpgrading = false
 	end
 
 	bAdd.MouseButton1Down:Connect(function() local customAmt = tonumber(amtInput.Text) or 1; if customAmt < 1 then customAmt = 1 end; TryUpgrade(math.floor(customAmt)) end)
@@ -146,15 +183,14 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 			isSpammingAll = true
 
 			local prestige = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Prestige") and player.leaderstats.Prestige.Value or 0
-			local statCap = GameData.GetStatCap(prestige)
-			local currentXP = isTitan and (player:GetAttribute("TitanXP") or 0) or (player:GetAttribute("XP") or 0)
+			local statCap = SafeGetStatCap(prestige)
+			local currentXP = isTitan and (tonumber(player:GetAttribute("TitanXP")) or 0) or (tonumber(player:GetAttribute("XP")) or 0)
 			local simXP = currentXP
 
 			local tallies = {}; local simStats = {}
 			for _, s in ipairs(statList) do
 				tallies[s] = 0
-				local val = player:GetAttribute(s) or 10; if type(val) == "string" then val = GameData.TitanRanks[val] or 10 end
-				simStats[s] = val
+				simStats[s] = ParseStat(player:GetAttribute(s))
 			end
 
 			local totalUpgrades = 0
@@ -162,22 +198,39 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 				local upgradedAny = false
 				for _, s in ipairs(statList) do
 					local cleanName = s:gsub("_Val", ""):gsub("Titan_", "")
-					local base = (prestige == 0) and (GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+					local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
 					if simStats[s] < statCap then
-						local cost = GameData.CalculateStatCost(simStats[s], base, prestige)
-						if simXP >= cost then simXP -= cost; simStats[s] += 1; tallies[s] += 1; upgradedAny = true; totalUpgrades += 1 end
+						local cost = SafeCalculateStatCost(simStats[s], base, prestige)
+						if simXP >= cost then 
+							simXP -= cost; simStats[s] += 1; tallies[s] += 1; upgradedAny = true; totalUpgrades += 1 
+						end
 					end
 				end
 				if not upgradedAny then break end
 			end
 
+			-- [[ THE FIX 3: Wait intervals between specific stat upgrades so server doesn't reject concurrent calls! ]]
 			if totalUpgrades > 0 then
-				for s, amt in pairs(tallies) do if amt > 0 then Network:WaitForChild("UpgradeStat"):FireServer(s, amt) end end
-				if NotificationManager then NotificationManager.Show("Distributed " .. totalUpgrades .. " points evenly!", "Success") end
+				task.spawn(function()
+					for s, amt in pairs(tallies) do 
+						if amt > 0 then 
+							local remaining = amt
+							while remaining > 0 do
+								local chunk = math.min(remaining, 50)
+								Network:WaitForChild("UpgradeStat"):FireServer(s, chunk)
+								remaining -= chunk
+								task.wait(0.05) 
+							end
+						end 
+					end
+					if NotificationManager then NotificationManager.Show("Distributed " .. totalUpgrades .. " points evenly!", "Success") end
+					task.wait(0.25)
+					isSpammingAll = false
+				end)
 			else
 				if NotificationManager then NotificationManager.Show("Not enough XP to upgrade anything!", "Error") end
+				isSpammingAll = false
 			end
-			task.wait(0.25); isSpammingAll = false
 		end)
 
 		return { Panel = panel, PtsLbl = ptsLbl }
@@ -257,8 +310,9 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 	local function UpdateStats()
 		local prestigeObj = player:WaitForChild("leaderstats", 5) and player.leaderstats:FindFirstChild("Prestige")
 		local prestige = prestigeObj and prestigeObj.Value or 0
-		local hXP = player:GetAttribute("XP") or 0; local tXP = player:GetAttribute("TitanXP") or 0
-		local statCap = GameData.GetStatCap(prestige)
+		local hXP = tonumber(player:GetAttribute("XP")) or 0
+		local tXP = tonumber(player:GetAttribute("TitanXP")) or 0
+		local statCap = SafeGetStatCap(prestige)
 
 		soldierData.PtsLbl.Text = AbbreviateNumber(hXP) .. " XP"
 		titanData.PtsLbl.Text = AbbreviateNumber(tXP) .. " T-XP"
@@ -271,7 +325,8 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 			local cleanName = statName:gsub("_Val", ""):gsub("Titan_", "")
 			local data = statRowRefs[statName]
 			local isTitanStat = table.find(titanStatsList, statName) ~= nil
-			local val = player:GetAttribute(statName) or 10; if type(val) == "string" then val = 10 end 
+			local val = ParseStat(player:GetAttribute(statName)) 
+
 			local cost1 = GetUpgradeCosts(val, cleanName, prestige)
 			local bonusAmount = GetCombinedBonus(cleanName)
 			local bonusText = bonusAmount > 0 and " <font color='#55FF55'>(+" .. bonusAmount .. ")</font>" or ""
