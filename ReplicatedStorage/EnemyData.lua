@@ -25,7 +25,10 @@ EnemyData.BossIcons = {
 	["Erwin Smith"] = "rbxassetid://116122082480103",
 	["Armin Arlert"] = "rbxassetid://99009166931575",
 	["Eren Yeager"] = "rbxassetid://104697161326891",
-	["System"] = "rbxassetid://125800917140688"
+	["System"] = "rbxassetid://125800917140688",
+
+	["Mikasa Ackerman"] = "rbxassetid://113777388050871",
+	["Hange Zoe"] = "rbxassetid://71066662959593"
 }
 
 EnemyData.Allies = {
@@ -37,7 +40,7 @@ EnemyData.Allies = {
 }
 
 EnemyData.RaidBosses = {
-	["Raid_Part1"] = { IsBoss = true, Name = "Female Titan", Req = 1, Health = 3000, GateType = "Hardening", GateHP = 1000, Strength = 120, Defense = 50, Speed = 65, Resolve = 60, TitanStats = {Power="A", Speed="A", Hardening="A", Endurance="B", Precision="B", Potential="B"}, Skills = {"Hardened Punch", "Nape Guard", "Leg Sweep"}, Drops = { Dews = 800, XP = 2500, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 5, ["Scout Regiment Cloak"] = 25, ["Scout Training Manual"] = 15, ["Iron Bamboo Heart"] = 5 } } },
+	["Raid_Part1"] = { IsBoss = true, Name = "Female Titan", Req = 1, Health = 3000, GateType = "Hardening", GateHP = 1000, Strength = 120, Defense = 50, Speed = 50, Resolve = 60, TitanStats = {Power="A", Speed="A", Hardening="A", Endurance="B", Precision="B", Potential="B"}, Skills = {"Hardened Punch", "Nape Guard", "Leg Sweep"}, Drops = { Dews = 800, XP = 2500, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 5, ["Scout Regiment Cloak"] = 25, ["Scout Training Manual"] = 15, ["Iron Bamboo Heart"] = 5 } } },
 	["Raid_Part2"] = { IsBoss = true, Name = "Armored Titan", Req = 1, Health = 4500, GateType = "Reinforced Skin", GateHP = 2500, Strength = 180, Defense = 100, Speed = 30, Resolve = 70, TitanStats = {Power="B", Speed="C", Hardening="S", Endurance="A", Precision="C", Potential="C"}, Skills = {"Armored Tackle", "Hardened Punch", "Brutal Swipe"}, Drops = { Dews = 1500, XP = 5000, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 6, ["Advanced ODM Gear"] = 15, ["Ultrahard Steel Blades"] = 25, ["Iron Bamboo Heart"] = 10 } } },
 	["Raid_Part3"] = { IsBoss = true, Name = "Beast Titan", Req = 1, Health = 6000, Strength = 250, Defense = 60, Speed = 40, Resolve = 85, TitanStats = {Power="S", Speed="C", Hardening="B", Endurance="A", Precision="A", Potential="A"}, Skills = {"Titan Roar", "Hardened Punch", "Brutal Swipe"}, Drops = { Dews = 2500, XP = 10000, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 7, ["Spinal Fluid Syringe"] = 5, ["Marleyan Armband"] = 25, ["Iron Bamboo Heart"] = 15, ["Glowing Titan Crystal"] = 2 } } },
 	["Raid_Part4"] = { IsBoss = true, Name = "War Hammer Titan", Req = 1, Health = 8000, GateType = "Hardening", GateHP = 3000, Strength = 350, Defense = 80, Speed = 60, Resolve = 100, TitanStats = {Power="A", Speed="B", Hardening="S", Endurance="B", Precision="A", Potential="A"}, Skills = {"War Hammer Spike", "Hardened Punch"}, Drops = { Dews = 4000, XP = 15000, ItemChance = { ["Standard Titan Serum"] = 100, ["Founder's Memory Wipe"] = 8, ["Spinal Fluid Syringe"] = 10, ["Marleyan Combat Manual"] = 25, ["Iron Bamboo Heart"] = 20, ["Glowing Titan Crystal"] = 5 } } },
@@ -112,13 +115,20 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "The Fall of Shiganshina", Waves = { { Template = "Story_Part1_Intro" }, { Template = "Evade_Debris" }, { Template = "Story_Part1_Mid" }, { Template = "3-Meter Pure Titan" }, { Template = "Story_Part1_PreBoss" }, { Template = "Part1Boss" }, { Template = "Story_Part1_Outro" } } }
+			[1] = { Name = "The Fall of Shiganshina", Waves = { 
+				{ Template = "Story_Part1_Intro" }, 
+				{ Template = "Evade_Debris", Flavor = "Dodge the falling debris from the breached wall!" }, 
+				{ Template = "Story_Part1_Mid" }, 
+				{ Template = "3-Meter Pure Titan", Flavor = "A stray pure titan blocks your path to the ships!" }, 
+				{ Template = "Story_Part1_PreBoss" }, 
+				{ Template = "Part1Boss", Flavor = "The Vanguard Abnormal charges you with terrifying speed!" }, 
+				{ Template = "Story_Part1_Outro" } 
+			} }
 		}
 	},
 
 	[2] = {
 		RandomFlavor = {"You face a Wooden Titan Dummy on the training grounds!"},
-		-- [[ THE FIX: Replaced "Brutal Swipe" with "Idle" so Dummies do not attack the player! ]]
 		Mobs = { { Name = "Wooden Titan Dummy", Health = 60, Strength = 2, Defense = 5, Speed = 2, Resolve = 5, TitanStats = emptyTitans, Skills = {"Idle"}, Drops = { Dews = 25, XP = 20 } } },
 		Templates = {
 			["Story_Part2_Intro"] = { 
@@ -170,7 +180,17 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "104th Cadet Corps Training", Waves = { { Template = "Story_Part2_Intro" }, { Template = "Balance Minigame" }, { Template = "Story_Part2_PostBalance" }, { Template = "Wooden Titan Dummy" }, { Template = "Story_Part2_Mid" }, { Template = "Armored Titan Dummy" }, { Template = "Story_Part2_PreBoss" }, { Template = "Part2Boss" }, { Template = "Story_Part2_Outro" } } }
+			[1] = { Name = "104th Cadet Corps Training", Waves = { 
+				{ Template = "Story_Part2_Intro" }, 
+				{ Template = "Balance Minigame", Flavor = "Maintain your balance on the ODM suspension rig!" }, 
+				{ Template = "Story_Part2_PostBalance" }, 
+				{ Template = "Wooden Titan Dummy", Flavor = "Slice the nape of the wooden dummy!" }, 
+				{ Template = "Story_Part2_Mid" }, 
+				{ Template = "Armored Titan Dummy", Flavor = "Shatter the dummy's armor before striking the nape!" }, 
+				{ Template = "Story_Part2_PreBoss" }, 
+				{ Template = "Part2Boss", Flavor = "Instructor Shadis challenges you to a duel!" }, 
+				{ Template = "Story_Part2_Outro" } 
+			} }
 		}
 	},
 
@@ -205,7 +225,7 @@ EnemyData.Parts = {
 				},
 				Choices = {"Engage the Female Titan!"}
 			},
-			["Part3Boss"] = { IsBoss = true, Name = "Female Titan (Annie)", Health = 1200, GateType = "Hardening", GateHP = 800, Strength = 50, Defense = 30, Speed = 60, Resolve = 35, TitanStats = {Power="A", Speed="A", Hardening="A", Endurance="B", Precision="B", Potential="B"}, Skills = {"Hardened Punch", "Block", "Brutal Swipe"}, Drops = { Dews = 1000, XP = 2000, ItemChance = { ["Ultrahard Steel Blades"] = 20, ["Standard Titan Serum"]=10 } }, Phases = { { Health = 800, GateType = "None", GateHP = 0, Strength = 70, Defense = 20, Speed = 90, Skills = {"Frenzied Thrash", "Brutal Swipe", "Evasive Maneuver"}, Flavor = "<font color='#FF5555'><b>Annie abandons her hardening to prioritize sheer speed! She's getting desperate!</b></font>" } } },
+			["Part3Boss"] = { IsBoss = true, Name = "Female Titan (Annie)", Health = 1200, GateType = "Hardening", GateHP = 800, Strength = 50, Defense = 30, Speed = 45, Resolve = 35, TitanStats = {Power="A", Speed="A", Hardening="A", Endurance="B", Precision="B", Potential="B"}, Skills = {"Hardened Punch", "Block", "Brutal Swipe"}, Drops = { Dews = 1000, XP = 2000, ItemChance = { ["Ultrahard Steel Blades"] = 20, ["Standard Titan Serum"]=10 } }, Phases = { { Health = 800, GateType = "None", GateHP = 0, Strength = 70, Defense = 20, Speed = 65, Skills = {"Frenzied Thrash", "Brutal Swipe", "Hardened Punch"}, Flavor = "<font color='#FF5555'><b>Annie abandons her hardening to prioritize sheer speed! She's getting desperate!</b></font>" } } },
 			["Story_Part3_Outro"] = { 
 				IsDialogue = true, 
 				Dialogues = {
@@ -217,7 +237,15 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "Clash of the Titans", Waves = { { Template = "Story_Part3_Intro" }, { Template = "Field Titan" }, { Template = "Story_Part3_Mid" }, { Template = "Tree Glider Abnormal" }, { Template = "Story_Part3_PreBoss" }, { Template = "Part3Boss" }, { Template = "Story_Part3_Outro" } } }
+			[1] = { Name = "Clash of the Titans", Waves = { 
+				{ Template = "Story_Part3_Intro" }, 
+				{ Template = "Field Titan", Flavor = "Maintain the long-range scouting formation!" }, 
+				{ Template = "Story_Part3_Mid" }, 
+				{ Template = "Tree Glider Abnormal", Flavor = "An abnormal is leaping through the giant trees!" }, 
+				{ Template = "Story_Part3_PreBoss" }, 
+				{ Template = "Part3Boss", Flavor = "The Female Titan breaks free from the traps!" }, 
+				{ Template = "Story_Part3_Outro" } 
+			} }
 		}
 	},
 
@@ -264,61 +292,25 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "The Uprising", Waves = { { Template = "Story_Part4_Intro" }, { Template = "Evade_Gunfire" }, { Template = "Interior MP" }, { Template = "Story_Part4_Mid" }, { Template = "Anti-Personnel MP" }, { Template = "Story_Part4_PreBoss" }, { Template = "Part4Boss" }, { Template = "Story_Part4_Outro" } } }
+			[1] = { Name = "The Uprising", Waves = { 
+				{ Template = "Story_Part4_Intro" }, 
+				{ Template = "Evade_Gunfire", Flavor = "Evade the barrage of incoming gunfire!" }, 
+				{ Template = "Interior MP", Flavor = "An Interior MP blocks your path to the caverns." }, 
+				{ Template = "Story_Part4_Mid" }, 
+				{ Template = "Anti-Personnel MP", Flavor = "A heavily armed MP drops from the ceiling." }, 
+				{ Template = "Story_Part4_PreBoss" }, 
+				{ Template = "Part4Boss", Flavor = "Kenny's Lieutenant opens fire!" }, 
+				{ Template = "Story_Part4_Outro" } 
+			} }
 		}
 	},
 
+	-- [[ THE FIX: Chronological Order Corrected! Return to Shiganshina is Part 5! ]]
 	[5] = {
-		RandomFlavor = {"You sneak through the streets of Liberio!"},
-		Mobs = { { IsHuman = true, Name = "Marleyan Guard", Health = 160, Strength = 35, Defense = 20, Speed = 30, Resolve = 30, TitanStats = emptyTitans, Skills = {"Heavy Slash", "Block"}, Drops = { Dews = 200, XP = 200 } } },
-		Templates = {
-			["Story_Part5_Intro"] = { 
-				IsDialogue = true, 
-				Dialogues = {
-					{ Speaker = "Eren Yeager", Text = "I just keep moving forward. Until my enemies are destroyed." },
-					{ Speaker = "Eren Yeager", Text = "The festival in Liberio begins now." }
-				},
-				Choices = {"Infiltrate the city."}
-			},
-			["Marleyan Guard"] = { IsHuman = true, Name = "Marleyan Guard", Health = 180, Strength = 35, Defense = 20, Speed = 30, Resolve = 30, TitanStats = emptyTitans, Skills = {"Heavy Slash", "Block"}, Drops = { Dews = 200, XP = 200 } },
-			["Story_Part5_Mid"] = { 
-				IsDialogue = true, 
-				Dialogues = {
-					{ Speaker = "Willy Tybur", Text = "To the enemy forces of Paradis..." },
-					{ Speaker = "Willy Tybur", Text = "This is a declaration of WAR!" }
-				},
-				Choices = {"Hold your ground."}
-			},
-			["Marleyan Elite"] = { IsHuman = true, Name = "Marleyan Elite", Health = 250, Strength = 50, Defense = 30, Speed = 45, Resolve = 40, TitanStats = emptyTitans, Skills = {"Anti-Titan Round", "Evasive Maneuver"}, Drops = { Dews = 300, XP = 300, ItemChance = {["Advanced ODM Gear"]=5} } },
-			["Story_Part5_PreBoss"] = { 
-				IsDialogue = true, 
-				Dialogues = {
-					{ Speaker = "Mikasa Ackerman", Text = "Eren... please come back." },
-					{ Speaker = "Mikasa Ackerman", Text = "The War Hammer Titan is manifesting! We have to destroy the crystal controlling it!" }
-				},
-				Choices = {"Engage the War Hammer!"}
-			},
-			["Part5Boss"] = { IsBoss = true, Name = "War Hammer Titan", Health = 1000, GateType = "Hardening", GateHP = 800, Strength = 120, Defense = 60, Speed = 60, Resolve = 60, TitanStats = {Power="A", Speed="B", Hardening="S", Endurance="B", Precision="A", Potential="A"}, Skills = {"War Hammer Spike", "Hardened Punch"}, Drops = { Dews = 2500, XP = 4000, ItemChance = { ["Spinal Fluid Syringe"] = 5, ["Marleyan Combat Manual"] = 15 } }, Phases = { { Health = 500, GateType = "None", GateHP = 0, Strength = 180, Defense = 40, Speed = 80, Skills = {"War Hammer Spike", "Crushed Boulders"}, Flavor = "<font color='#FFAA00'><b>The War Hammer sheds its armor for a final desperate assault!</b></font>" } } },
-			["Story_Part5_Outro"] = { 
-				IsDialogue = true, 
-				Dialogues = {
-					{ Speaker = "Zeke Yeager", Text = "Everything is going according to plan." },
-					{ Speaker = "Zeke Yeager", Text = "The Eldian restoration begins now." }
-				},
-				Choices = {"Return to the airship."},
-				Rewards = { ItemName = "Spinal Fluid Syringe", Amount = 1 } 
-			}
-		},
-		Missions = { 
-			[1] = { Name = "Marleyan Assault", Waves = { { Template = "Story_Part5_Intro" }, { Template = "Marleyan Guard" }, { Template = "Story_Part5_Mid" }, { Template = "Marleyan Elite" }, { Template = "Story_Part5_PreBoss" }, { Template = "Part5Boss" }, { Template = "Story_Part5_Outro" } } }
-		}
-	},
-
-	[6] = {
 		RandomFlavor = {"You are ambushed in the ruins of Shiganshina!"},
 		Mobs = { { Name = "Zeke's Controlled Titan", Health = 220, Strength = 60, Defense = 20, Speed = 40, Resolve = 20, TitanStats = emptyTitans, Skills = {"Brutal Swipe", "Stomp"}, Drops = { Dews = 350, XP = 300 } } },
 		Templates = {
-			["Story_Part6_Intro"] = { 
+			["Story_Part5_Intro"] = { 
 				IsDialogue = true, 
 				Dialogues = {
 					{ Speaker = "Erwin Smith", Text = "My soldiers rage! My soldiers scream! My soldiers FIGHT!" },
@@ -328,7 +320,7 @@ EnemyData.Parts = {
 			},
 			["Evade_Rocks"] = { IsMinigame = "GapClose", Name = "Crushed Boulders", Health = 1, GateHP = 0, Strength = 0, Defense = 0, Speed = 0, Resolve = 0, TitanStats = emptyTitans, Skills = {}, Drops = { Dews = 200, XP = 200 } },
 			["Zeke's Controlled Titan"] = { Name = "Zeke's Controlled Titan", Health = 220, Strength = 60, Defense = 20, Speed = 40, Resolve = 20, TitanStats = emptyTitans, Skills = {"Brutal Swipe", "Stomp"}, Drops = { Dews = 350, XP = 300 } }, 
-			["Story_Part6_Mid"] = { 
+			["Story_Part5_Mid"] = { 
 				IsDialogue = true, 
 				Dialogues = {
 					{ Speaker = "Levi Ackerman", Text = "Give up on your dreams and die. Lead the recruits straight into hell." },
@@ -337,7 +329,7 @@ EnemyData.Parts = {
 				Choices = {"Trust Levi."}
 			},
 			["Beast Titan Pitcher"] = { Name = "Beast Titan (Rock Throw)", Health = 350, Strength = 120, Defense = 60, Speed = 30, Resolve = 50, TitanStats = emptyTitans, IsLongRange = true, Skills = {"Crushed Boulders", "Block"}, Drops = { Dews = 500, XP = 600, ItemChance = {["Thunder Spear"]=5} } },
-			["Story_Part6_PreBoss"] = { 
+			["Story_Part5_PreBoss"] = { 
 				IsDialogue = true, 
 				Dialogues = {
 					{ Speaker = "Armin Arlert", Text = "The Armored Titan is charging the gates!" },
@@ -345,8 +337,8 @@ EnemyData.Parts = {
 				},
 				Choices = {"Equip Thunder Spears!"}
 			},
-			["Part6Boss"] = { IsBoss = true, Name = "Armored Titan (Reiner)", Health = 1200, GateType = "Reinforced Skin", GateHP = 1200, Strength = 150, Defense = 120, Speed = 45, Resolve = 60, TitanStats = {Power="B", Speed="C", Hardening="S", Endurance="A", Precision="C", Potential="C"}, Skills = {"Armored Tackle", "Hardened Punch", "Brutal Swipe"}, Drops = { Dews = 3500, XP = 5000, ItemChance = { ["Spinal Fluid Syringe"] = 2, ["Thunder Spear"] = 15 } }, Phases = { { Health = 1500, GateType = "None", GateHP = 0, Strength = 200, Defense = 60, Speed = 90, Skills = {"Frenzied Thrash", "Stomp"}, Flavor = "<font color='#FF5555'><b>Reiner sheds the armor from the back of his legs! His speed has doubled!</b></font>" } } },
-			["Story_Part6_Outro"] = { 
+			["Part5Boss"] = { IsBoss = true, Name = "Armored Titan (Reiner)", Health = 1200, GateType = "Reinforced Skin", GateHP = 1200, Strength = 150, Defense = 120, Speed = 45, Resolve = 60, TitanStats = {Power="B", Speed="C", Hardening="S", Endurance="A", Precision="C", Potential="C"}, Skills = {"Armored Tackle", "Hardened Punch", "Brutal Swipe"}, Drops = { Dews = 3500, XP = 5000, ItemChance = { ["Spinal Fluid Syringe"] = 2, ["Thunder Spear"] = 15 } }, Phases = { { Health = 1500, GateType = "None", GateHP = 0, Strength = 200, Defense = 60, Speed = 90, Skills = {"Frenzied Thrash", "Stomp"}, Flavor = "<font color='#FF5555'><b>Reiner sheds the armor from the back of his legs! His speed has doubled!</b></font>" } } },
+			["Story_Part5_Outro"] = { 
 				IsDialogue = true, 
 				Dialogues = {
 					{ Speaker = "Hange Zoe", Text = "We did it... We reclaimed Wall Maria." },
@@ -357,7 +349,70 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "Return to Shiganshina", Waves = { { Template = "Story_Part6_Intro" }, { Template = "Evade_Rocks" }, { Template = "Zeke's Controlled Titan" }, { Template = "Story_Part6_Mid" }, { Template = "Beast Titan Pitcher" }, { Template = "Story_Part6_PreBoss" }, { Template = "Part6Boss" }, { Template = "Story_Part6_Outro" } } }
+			[1] = { Name = "Return to Shiganshina", Waves = { 
+				{ Template = "Story_Part5_Intro" }, 
+				{ Template = "Evade_Rocks", Flavor = "The Beast Titan hurls crushed boulders at your squad!" }, 
+				{ Template = "Zeke's Controlled Titan", Flavor = "Zeke's pure titans block the path!" }, 
+				{ Template = "Story_Part5_Mid" }, 
+				{ Template = "Beast Titan Pitcher", Flavor = "Close the distance while he reloads!" }, 
+				{ Template = "Story_Part5_PreBoss" }, 
+				{ Template = "Part5Boss", Flavor = "Reiner breaches the gates. Bring him down!" }, 
+				{ Template = "Story_Part5_Outro" } 
+			} }
+		}
+	},
+
+	[6] = {
+		RandomFlavor = {"You sneak through the streets of Liberio!"},
+		Mobs = { { IsHuman = true, Name = "Marleyan Guard", Health = 160, Strength = 35, Defense = 20, Speed = 30, Resolve = 30, TitanStats = emptyTitans, Skills = {"Heavy Slash", "Block"}, Drops = { Dews = 200, XP = 200 } } },
+		Templates = {
+			["Story_Part6_Intro"] = { 
+				IsDialogue = true, 
+				Dialogues = {
+					{ Speaker = "Eren Yeager", Text = "I just keep moving forward. Until my enemies are destroyed." },
+					{ Speaker = "Eren Yeager", Text = "The festival in Liberio begins now." }
+				},
+				Choices = {"Infiltrate the city."}
+			},
+			["Marleyan Guard"] = { IsHuman = true, Name = "Marleyan Guard", Health = 180, Strength = 35, Defense = 20, Speed = 30, Resolve = 30, TitanStats = emptyTitans, Skills = {"Heavy Slash", "Block"}, Drops = { Dews = 200, XP = 200 } },
+			["Story_Part6_Mid"] = { 
+				IsDialogue = true, 
+				Dialogues = {
+					{ Speaker = "Willy Tybur", Text = "To the enemy forces of Paradis..." },
+					{ Speaker = "Willy Tybur", Text = "This is a declaration of WAR!" }
+				},
+				Choices = {"Hold your ground."}
+			},
+			["Marleyan Elite"] = { IsHuman = true, Name = "Marleyan Elite", Health = 250, Strength = 50, Defense = 30, Speed = 45, Resolve = 40, TitanStats = emptyTitans, Skills = {"Anti-Titan Round", "Evasive Maneuver"}, Drops = { Dews = 300, XP = 300, ItemChance = {["Advanced ODM Gear"]=5} } },
+			["Story_Part6_PreBoss"] = { 
+				IsDialogue = true, 
+				Dialogues = {
+					{ Speaker = "Mikasa Ackerman", Text = "Eren... please come back." },
+					{ Speaker = "Mikasa Ackerman", Text = "The War Hammer Titan is manifesting! We have to destroy the crystal controlling it!" }
+				},
+				Choices = {"Engage the War Hammer!"}
+			},
+			["Part6Boss"] = { IsBoss = true, Name = "War Hammer Titan", Health = 1000, GateType = "Hardening", GateHP = 800, Strength = 120, Defense = 60, Speed = 60, Resolve = 60, TitanStats = {Power="A", Speed="B", Hardening="S", Endurance="B", Precision="A", Potential="A"}, Skills = {"War Hammer Spike", "Hardened Punch"}, Drops = { Dews = 2500, XP = 4000, ItemChance = { ["Spinal Fluid Syringe"] = 5, ["Marleyan Combat Manual"] = 15 } }, Phases = { { Health = 500, GateType = "None", GateHP = 0, Strength = 180, Defense = 40, Speed = 80, Skills = {"War Hammer Spike", "Crushed Boulders"}, Flavor = "<font color='#FFAA00'><b>The War Hammer sheds its armor for a final desperate assault!</b></font>" } } },
+			["Story_Part6_Outro"] = { 
+				IsDialogue = true, 
+				Dialogues = {
+					{ Speaker = "Zeke Yeager", Text = "Everything is going according to plan." },
+					{ Speaker = "Zeke Yeager", Text = "The Eldian restoration begins now." }
+				},
+				Choices = {"Return to the airship."},
+				Rewards = { ItemName = "Spinal Fluid Syringe", Amount = 1 } 
+			}
+		},
+		Missions = { 
+			[1] = { Name = "Marleyan Assault", Waves = { 
+				{ Template = "Story_Part6_Intro" }, 
+				{ Template = "Marleyan Guard", Flavor = "A Marleyan guard spots you infiltrating the festival." }, 
+				{ Template = "Story_Part6_Mid" }, 
+				{ Template = "Marleyan Elite", Flavor = "Elite forces scramble to protect the stage." }, 
+				{ Template = "Story_Part6_PreBoss" }, 
+				{ Template = "Part6Boss", Flavor = "Lara Tybur manifests the War Hammer Titan!" }, 
+				{ Template = "Story_Part6_Outro" } 
+			} }
 		}
 	},
 
@@ -403,7 +458,15 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "War for Paradis", Waves = { { Template = "Story_Part7_Intro" }, { Template = "Marleyan Paratrooper" }, { Template = "Story_Part7_Mid" }, { Template = "Anti-Titan Artillery" }, { Template = "Story_Part7_PreBoss" }, { Template = "Part7Boss" }, { Template = "Story_Part7_Outro" } } }
+			[1] = { Name = "War for Paradis", Waves = { 
+				{ Template = "Story_Part7_Intro" }, 
+				{ Template = "Marleyan Paratrooper", Flavor = "Marleyan soldiers deploy from the zeppelins!" }, 
+				{ Template = "Story_Part7_Mid" }, 
+				{ Template = "Anti-Titan Artillery", Flavor = "Destroy the artillery before they shoot down Zeke!" }, 
+				{ Template = "Story_Part7_PreBoss" }, 
+				{ Template = "Part7Boss", Flavor = "Porco ambushes you from below!" }, 
+				{ Template = "Story_Part7_Outro" } 
+			} }
 		}
 	},
 
@@ -449,7 +512,15 @@ EnemyData.Parts = {
 			}
 		},
 		Missions = { 
-			[1] = { Name = "The Rumbling", Waves = { { Template = "Story_Part8_Intro" }, { Template = "Wall Titan" }, { Template = "Story_Part8_Mid" }, { Template = "Ancient Shifter" }, { Template = "Story_Part8_PreBoss" }, { Template = "Part8Boss" }, { Template = "Story_Part8_Outro" } } }
+			[1] = { Name = "The Rumbling", Waves = { 
+				{ Template = "Story_Part8_Intro" }, 
+				{ Template = "Wall Titan", Flavor = "Intercept the Wall Titans before they crush the city!" }, 
+				{ Template = "Story_Part8_Mid" }, 
+				{ Template = "Ancient Shifter", Flavor = "A horrific husk of a past Shifter emerges from the bone!" }, 
+				{ Template = "Story_Part8_PreBoss" }, 
+				{ Template = "Part8Boss", Flavor = "Eren's skeletal titan towers over you." }, 
+				{ Template = "Story_Part8_Outro" } 
+			} }
 		}
 	}
 }
