@@ -1,6 +1,5 @@
 -- @ScriptType: ModuleScript
-
--- @ScriptType: ModuleScript
+-- Name: SkillData
 -- @ScriptType: ModuleScript
 local SkillData = {}
 
@@ -54,66 +53,67 @@ SkillData.Skills = {
 	["God Speed"] = { Requirement = "Awakened Ackerman", Range = "Close", Type = "Style", Mult = 0.5, Hits = 8, GasCost = 60, Effect = "Stun", Duration = 2, Cooldown = 6, Order = 17, ComboReq = "Swift Execution", ComboMult = 1.8, SFX = "SpinSlash", VFX = "ClawMark", Description = "Move faster than the eye can see, shredding the target completely." },
 
 	-- [[ SHIFTER SPECIFIC MOVES ]]
-	["Titan Roar"] = { Requirement = "AnyTitan", Range = "Any", Type = "Titan", Mult = 0, Effect = "Confusion", Duration = 2, EnergyCost = 20, Cooldown = 5, Order = 10, SFX = "Roar", VFX = "BlockMark", Description = "A terrifying roar that confuses and disorients the enemy." },
-	["Hardened Punch"] = { Requirement = "AnyTitan", Range = "Close", Type = "Titan", Mult = 3.5, Effect = "Debuff_Defense", Duration = 2, EnergyCost = 30, Cooldown = 4, Order = 11, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "Focus crystal hardening into your knuckles to shatter enemy armor." },
+	["Titan Roar"] = { Requirement = "AnyTitan", Range = "Any", Type = "Titan", Mult = 0, Effect = "Confusion", Duration = 2, EnergyCost = 20, Cooldown = 6, Order = 10, Telegraphed = true, SFX = "Roar", VFX = "BlockMark", Description = "A terrifying roar that confuses and disorients the enemy." },
+	["Hardened Punch"] = { Requirement = "AnyTitan", Range = "Close", Type = "Titan", Mult = 3.5, Effect = "Debuff_Defense", Duration = 2, EnergyCost = 30, Cooldown = 6, Order = 11, Telegraphed = true, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "Focus crystal hardening into your knuckles to shatter enemy armor." },
 	["Nape Guard"] = { Requirement = "AnyTitan", Range = "Any", Type = "Titan", Mult = 0, Effect = "NapeGuard", Duration = 2, EnergyCost = 40, Cooldown = 6, Order = 12, SFX = "Block", VFX = "BlockMark", Description = "Harden the nape of your neck, reducing incoming Nape damage to 1." },
 
 	-- Attack Titan
-	["Berserk Rush"] = { Requirement = "Attack Titan", Range = "Close", Type = "Titan", Mult = 0.8, Hits = 4, Effect = "Bleed", Duration = 2, EnergyCost = 25, Cooldown = 3, Order = 13, SFX = "Punch", VFX = "SlashMark", Description = "A flurry of enraged attacks." },
+	["Berserk Rush"] = { Requirement = "Attack Titan", Range = "Close", Type = "Titan", Mult = 0.8, Hits = 4, Effect = "Bleed", Duration = 2, EnergyCost = 25, Cooldown = 6, Order = 13, Telegraphed = true, SFX = "Punch", VFX = "SlashMark", Description = "A flurry of enraged attacks." },
 	["Future Memories"] = { Requirement = "Attack Titan", Range = "Any", Type = "Titan", Mult = 0, Effect = "Block", EnergyCost = 15, Cooldown = 4, Order = 14, SFX = "Heal", VFX = "BlockMark", Description = "See the future, granting 100% evasion for the next attack." },
 
 	-- Jaw Titan
-	["Crushing Bite"] = { Requirement = "Jaw Titan", Range = "Close", Type = "Titan", Mult = 3.5, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 30, Cooldown = 3, Order = 13, SFX = "Bite", VFX = "ClawMark", Description = "A devastating bite that easily shatters hardening and armor." },
-	["Agile Leap"] = { Requirement = "Jaw Titan", Range = "Any", Type = "Titan", Mult = 2.0, Effect = "CloseGap", EnergyCost = 20, Cooldown = 2, Order = 14, SFX = "Dash", VFX = "SlashMark", Description = "Leap incredible distances to close the gap instantly and strike." },
+	["Crushing Bite"] = { Requirement = "Jaw Titan", Range = "Close", Type = "Titan", Mult = 3.5, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 30, Cooldown = 6, Order = 13, Telegraphed = true, SFX = "Bite", VFX = "ClawMark", Description = "A devastating bite that easily shatters hardening and armor." },
+	["Agile Leap"] = { Requirement = "Jaw Titan", Range = "Any", Type = "Titan", Mult = 2.0, Effect = "CloseGap", EnergyCost = 20, Cooldown = 4, Order = 14, Telegraphed = true, SFX = "Dash", VFX = "SlashMark", Description = "Leap incredible distances to close the gap instantly and strike." },
 
 	-- Cart Titan
-	["Panzer Artillery"] = { Requirement = "Cart Titan", Range = "Long", Type = "Titan", Mult = 1.2, Hits = 3, Effect = "Burn", Duration = 2, EnergyCost = 35, Cooldown = 3, Order = 13, SFX = "Explosion", VFX = "ExplosionMark", Description = "Fire the Panzer Unit cannons strapped to your back." },
+	["Panzer Artillery"] = { Requirement = "Cart Titan", Range = "Long", Type = "Titan", Mult = 1.2, Hits = 3, Effect = "Burn", Duration = 2, EnergyCost = 35, Cooldown = 6, Order = 13, Telegraphed = true, SFX = "Explosion", VFX = "ExplosionMark", Description = "Fire the Panzer Unit cannons strapped to your back." },
 	["Endurance Run"] = { Requirement = "Cart Titan", Range = "Any", Type = "Titan", Mult = 0, Effect = "RestoreHeat", EnergyCost = 0, Cooldown = 5, Order = 14, SFX = "Dash", VFX = "HealMark", Description = "Run laps to rapidly regenerate 40 Heat and 15% HP." },
 
 	-- Female Titan
-	["Crystal Kick"] = { Requirement = "Female Titan", Range = "Close", Type = "Titan", Mult = 4.0, Effect = "Stun", Duration = 1, EnergyCost = 30, Cooldown = 4, Order = 13, SFX = "Kick", VFX = "ExplosionMark", Description = "Harden your shin and deliver a devastating roundhouse." },
-	["Attraction Scream"] = { Requirement = "Female Titan", Range = "Any", Type = "Titan", Mult = 2.0, Effect = "Confusion", Duration = 3, EnergyCost = 40, Cooldown = 5, Order = 14, SFX = "Roar", VFX = "BlockMark", Description = "Scream to summon pure titans that swarm the target." },
+	["Crystal Kick"] = { Requirement = "Female Titan", Range = "Close", Type = "Titan", Mult = 4.0, Effect = "Stun", Duration = 1, EnergyCost = 30, Cooldown = 7, Order = 13, Telegraphed = true, SFX = "Kick", VFX = "ExplosionMark", Description = "Harden your shin and deliver a devastating roundhouse." },
+	["Attraction Scream"] = { Requirement = "Female Titan", Range = "Any", Type = "Titan", Mult = 2.0, Effect = "Confusion", Duration = 3, EnergyCost = 40, Cooldown = 8, Order = 14, Telegraphed = true, SFX = "Roar", VFX = "BlockMark", Description = "Scream to summon pure titans that swarm the target." },
 
 	-- Armored Titan
-	["Armored Tackle"] = { Requirement = "Armored Titan", Range = "Any", Effect = "CloseGap", Type = "Titan", Mult = 4.0, Duration = 1, EnergyCost = 40, Cooldown = 5, Order = 13, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "A devastating, unstoppable charge that closes the gap and stuns." },
-	["Shattering Charge"] = { Requirement = "Armored Titan", Range = "Close", Type = "Titan", Mult = 5.0, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 50, Cooldown = 6, Order = 14, ComboReq = "Armored Tackle", ComboMult = 1.5, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "Follow up a tackle with a massive armor-breaking blow." },
+	["Armored Tackle"] = { Requirement = "Armored Titan", Range = "Any", Effect = "CloseGap", Type = "Titan", Mult = 4.0, Duration = 1, EnergyCost = 40, Cooldown = 8, Order = 13, Telegraphed = true, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "A devastating, unstoppable charge that closes the gap and stuns." },
+	["Shattering Charge"] = { Requirement = "Armored Titan", Range = "Close", Type = "Titan", Mult = 5.0, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 50, Cooldown = 9, Order = 14, ComboReq = "Armored Tackle", ComboMult = 1.5, Telegraphed = true, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "Follow up a tackle with a massive armor-breaking blow." },
 
 	-- War Hammer Titan
-	["War Hammer Spike"] = { Requirement = "War Hammer Titan", Range = "Any", Type = "Titan", Mult = 4.5, Effect = "Bleed", Duration = 4, EnergyCost = 45, Cooldown = 5, Order = 13, ComboReq = "Hardened Punch", ComboMult = 1.4, SFX = "Spike", VFX = "SlashMark", Description = "Manifest a massive crystal spike to impale the enemy." },
-	["Crossbow Construct"] = { Requirement = "War Hammer Titan", Range = "Long", Type = "Titan", Mult = 3.5, Effect = "Crippled", Duration = 2, EnergyCost = 30, Cooldown = 3, Order = 14, SFX = "Sniper", VFX = "SlashMark", Description = "Construct a crystal crossbow and pin the target from afar." },
+	["War Hammer Spike"] = { Requirement = "War Hammer Titan", Range = "Any", Type = "Titan", Mult = 4.5, Effect = "Bleed", Duration = 4, EnergyCost = 45, Cooldown = 8, Order = 13, ComboReq = "Hardened Punch", ComboMult = 1.4, Telegraphed = true, SFX = "Spike", VFX = "SlashMark", Description = "Manifest a massive crystal spike to impale the enemy." },
+	["Crossbow Construct"] = { Requirement = "War Hammer Titan", Range = "Long", Type = "Titan", Mult = 3.5, Effect = "Crippled", Duration = 2, EnergyCost = 30, Cooldown = 7, Order = 14, Telegraphed = true, SFX = "Sniper", VFX = "SlashMark", Description = "Construct a crystal crossbow and pin the target from afar." },
 
 	-- Beast Titan
-	["Pitching Ace"] = { Requirement = "Beast Titan", Range = "Long", Type = "Titan", Mult = 5.0, Effect = "Crippled", Duration = 3, EnergyCost = 50, Cooldown = 5, Order = 14, ComboReq = "Crushed Boulders", ComboMult = 1.5, SFX = "Explosion", VFX = "ExplosionMark", Description = "A perfectly aimed, hyper-lethal fastball." },
+	["Pitching Ace"] = { Requirement = "Beast Titan", Range = "Long", Type = "Titan", Mult = 5.0, Effect = "Crippled", Duration = 3, EnergyCost = 50, Cooldown = 9, Order = 14, ComboReq = "Crushed Boulders", ComboMult = 1.5, Telegraphed = true, SFX = "Explosion", VFX = "ExplosionMark", Description = "A perfectly aimed, hyper-lethal fastball." },
 
 	-- Colossal Titan
-	["Colossal Steam"] = { Requirement = "Colossal Titan", Range = "Any", Type = "Titan", Mult = 1.5, Hits = 2, Effect = "Burn", Duration = 3, EnergyCost = 50, Cooldown = 7, Order = 13, SFX = "Steam", VFX = "ExplosionMark", Description = "Emit waves of scorching steam, burning anyone nearby." },
-	["Devastating Kick"] = { Requirement = "Colossal Titan", Range = "Close", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 2, EnergyCost = 60, Cooldown = 6, Order = 14, SFX = "Stomp", VFX = "ExplosionMark", Description = "A slow, earth-shattering kick that obliterates defenses." },
+	["Colossal Steam"] = { Requirement = "Colossal Titan", Range = "Any", Type = "Titan", Mult = 1.5, Hits = 2, Effect = "Burn", Duration = 3, EnergyCost = 50, Cooldown = 9, Order = 13, Telegraphed = true, SFX = "Steam", VFX = "ExplosionMark", Description = "Emit waves of scorching steam, burning anyone nearby." },
+	["Devastating Kick"] = { Requirement = "Colossal Titan", Range = "Close", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 1, EnergyCost = 60, Cooldown = 10, Order = 14, Telegraphed = true, SFX = "Stomp", VFX = "ExplosionMark", Description = "A slow, earth-shattering kick that obliterates defenses." },
 
 	-- Founding Titan
-	["Coordinate Command"] = { Requirement = "Founding Titan", Range = "Any", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 3, EnergyCost = 80, Cooldown = 8, Order = 13, SFX = "Roar", VFX = "ClawMark", Description = "Command pure titans to swarm and crush the enemy completely." },
+	["Coordinate Command"] = { Requirement = "Founding Titan", Range = "Any", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 1, EnergyCost = 80, Cooldown = 12, Order = 13, Telegraphed = true, SFX = "Roar", VFX = "ClawMark", Description = "Command pure titans to swarm and crush the enemy completely." },
 
 	-- [[ TRANSCENDENT FUSION MOVES ]]
-	["Coordinate Crystal Strike"] = { Requirement = "Founding Female Titan", Range = "Any", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 3, EnergyCost = 60, Cooldown = 6, Order = 15, SFX = "Spike", VFX = "ClawMark", Description = "Summon pure titans encased in hardening to obliterate the target." },
-	["Armored Berserk"] = { Requirement = "Armored Attack Titan", Range = "Close", Type = "Titan", Mult = 5.0, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 50, Cooldown = 5, Order = 15, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "A relentless, armored barrage that shreds defense." },
-	["War Hammer Onslaught"] = { Requirement = "War Hammer Attack Titan", Range = "Close", Type = "Titan", Mult = 5.5, Effect = "Bleed", Duration = 4, EnergyCost = 55, Cooldown = 5, Order = 15, SFX = "Spike", VFX = "SlashMark", Description = "Creates weapons from the earth, striking with immense power." },
-	["Steam Bite"] = { Requirement = "Colossal Jaw Titan", Range = "Close", Type = "Titan", Mult = 4.5, Effect = "Burn", Duration = 3, EnergyCost = 45, Cooldown = 4, Order = 15, SFX = "Bite", VFX = "ExplosionMark", Description = "A scorching, hyper-fast bite that melts armor." },	
-	["Rumbling Advance"] = { Requirement = "Founding Attack Titan", Range = "Any", Type = "Titan", Mult = 6.5, Effect = "Stun", Duration = 3, EnergyCost = 60, Cooldown = 6, Order = 15, SFX = "Roar", VFX = "ExplosionMark", Description = "Command the Wall Titans to advance, crushing everything in their path." },
+	["Coordinate Crystal Strike"] = { Requirement = "Founding Female Titan", Range = "Any", Type = "Titan", Mult = 6.0, Effect = "Stun", Duration = 1, EnergyCost = 60, Cooldown = 10, Order = 15, Telegraphed = true, SFX = "Spike", VFX = "ClawMark", Description = "Summon pure titans encased in hardening to obliterate the target." },
+	["Armored Berserk"] = { Requirement = "Armored Attack Titan", Range = "Close", Type = "Titan", Mult = 5.0, Effect = "Debuff_Defense", Duration = 3, EnergyCost = 50, Cooldown = 10, Order = 15, Telegraphed = true, SFX = "HeavyPunch", VFX = "ExplosionMark", Description = "A relentless, armored barrage that shreds defense." },
+	["War Hammer Onslaught"] = { Requirement = "War Hammer Attack Titan", Range = "Close", Type = "Titan", Mult = 5.5, Effect = "Bleed", Duration = 4, EnergyCost = 55, Cooldown = 10, Order = 15, Telegraphed = true, SFX = "Spike", VFX = "SlashMark", Description = "Creates weapons from the earth, striking with immense power." },
+	["Steam Bite"] = { Requirement = "Colossal Jaw Titan", Range = "Close", Type = "Titan", Mult = 4.5, Effect = "Burn", Duration = 3, EnergyCost = 45, Cooldown = 9, Order = 15, Telegraphed = true, SFX = "Bite", VFX = "ExplosionMark", Description = "A scorching, hyper-fast bite that melts armor." },	
+	["Rumbling Advance"] = { Requirement = "Founding Attack Titan", Range = "Any", Type = "Titan", Mult = 6.5, Effect = "Stun", Duration = 1, EnergyCost = 60, Cooldown = 12, Order = 15, Telegraphed = true, SFX = "Roar", VFX = "ExplosionMark", Description = "Command the Wall Titans to advance, crushing everything in their path." },
 
 	-- [[ ENEMY EXCLUSIVE MOVES ]]
 	["Titan Grab"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 1.2, Effect = "Stun", Duration = 1, Cooldown = 3, SFX = "Dash", VFX = "ClawMark", Description = "The Titan attempts to grab the target." },
 	["Titan Bite"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 1.6, Effect = "Bleed", Duration = 2, Cooldown = 2, ComboReq = "Titan Grab", ComboMult = 1.5, SFX = "Bite", VFX = "ClawMark", Description = "A lethal bite targeting the head or torso." },
 	["Brutal Swipe"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 1.0, SFX = "HeavyPunch", VFX = "SlashMark", Description = "A heavy, sweeping arm strike." },
 	["Frenzied Thrash"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 0.5, Hits = 3, Cooldown = 3, SFX = "Punch", VFX = "ExplosionMark", Description = "An unpredictable, flailing attack." },
-	["Stomp"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 2.0, Effect = "Stun", Duration = 1, Cooldown = 4, SFX = "Stomp", VFX = "ExplosionMark", Description = "A devastating stomp that crushes the target." },
 
-	["Crushed Boulders"] = { Requirement = "Enemy", Range = "Any", Type = "Titan", Mult = 1.8, Effect = "GasDrain", Duration = 0, Cooldown = 1, SFX = "Explosion", VFX = "ExplosionMark", Description = "Throws a massive spread of crushed rocks." },
-	["Anti-Titan Round"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 2.5, Effect = "Bleed", Duration = 3, Cooldown = 4, SFX = "Sniper", VFX = "ExplosionMark", Description = "Fires a massive armor-piercing shell." },
+	["Stomp"] = { Requirement = "Enemy", Range = "Close", Type = "Titan", Mult = 2.0, Effect = "Stun", Duration = 1, Cooldown = 6, Telegraphed = true, SFX = "Stomp", VFX = "ExplosionMark", Description = "A devastating stomp that crushes the target." },
+	["Crushed Boulders"] = { Requirement = "Enemy", Range = "Any", Type = "Titan", Mult = 1.8, Effect = "GasDrain", Duration = 0, Cooldown = 5, Telegraphed = true, SFX = "Explosion", VFX = "ExplosionMark", Description = "Throws a massive spread of crushed rocks." },
+	["Anti-Titan Round"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 2.5, Effect = "Bleed", Duration = 3, Cooldown = 6, Telegraphed = true, SFX = "Sniper", VFX = "ExplosionMark", Description = "Fires a massive armor-piercing shell." },
 
-	["Heavy Slash"] = { Requirement = "Enemy", Range = "Close", Type = "Basic", Mult = 1.8, Cooldown = 2, SFX = "HeavySlash", VFX = "SlashMark", Description = "A powerful, slow swing." },
+	["Heavy Slash"] = { Requirement = "Enemy", Range = "Close", Type = "Basic", Mult = 1.3, Cooldown = 2, SFX = "HeavySlash", VFX = "SlashMark", Description = "A powerful, slow swing." },
 	["Block"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 0, Effect = "Block", Cooldown = 2, SFX = "Block", VFX = "BlockMark", Description = "Defends against incoming damage." },
 	["Evasive Maneuver"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 0, Effect = "Block", Cooldown = 5, SFX = "Dash", VFX = "BlockMark", Description = "Dodges incoming attacks." },
 	["Smoke Screen"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 0, Effect = "Block", Cooldown = 5, SFX = "Steam", VFX = "BlockMark", Description = "Creates a smoke screen to evade attacks." },
 	["Regroup"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 0, Effect = "Rest", Cooldown = 4, SFX = "Heal", VFX = "HealMark", Description = "Steps back to heal." },
+	["Idle"] = { Requirement = "Enemy", Range = "Any", Type = "Basic", Mult = 0, Effect = "None", Cooldown = 0, SFX = "None", VFX = "None", Description = "Stands perfectly still." }
 }
 
 return SkillData
