@@ -72,7 +72,6 @@ lbRf.OnServerInvoke = function(player, lbType)
 	return finalList
 end
 
--- [[ THE FIX: Added Default Equipped Skills to Data Template ]]
 local DefaultData = { 
 	Prestige = 0, CurrentPart = 1, CurrentMission = 1, CurrentWave = 1, XP = 0, TitanXP = 0, Dews = 0, Elo = 1000, 
 	Titan = "None", FightingStyle = "None", Clan = "None", Regiment = "Cadet Corps", DeployedDistrict = "Trost District",
@@ -209,6 +208,9 @@ pcall(function()
 	end)
 end)
 
+-- Forward Declaration of SavePlayer so we can force-save during wipes
+local SavePlayer
+
 local AdminManager = require(ReplicatedStorage:WaitForChild("AdminManager"))
 
 RemotesFolder.AdminCommand.OnServerEvent:Connect(function(player, command, targetName, args)
@@ -264,10 +266,16 @@ RemotesFolder.AdminCommand.OnServerEvent:Connect(function(player, command, targe
 		for k, v in pairs(DefaultData) do if k ~= "Prestige" and k ~= "Dews" and k ~= "Elo" then targetPlayer:SetAttribute(k, v) end end
 		for k, v in pairs(savedGamepasses) do targetPlayer:SetAttribute(k, v) end
 
+		-- [[ THE FIX: Re-enable the DataLoaded flag so SavePlayer doesn't ignore the wiped file! ]]
+		targetPlayer:SetAttribute("DataLoaded", true)
+
 		task.spawn(function() 
 			PrestigeLB:SetAsync(tostring(targetPlayer.UserId), 0)
 			EloLB:SetAsync(tostring(targetPlayer.UserId), 1000)
+			if SavePlayer then SavePlayer(targetPlayer, false) end -- Force a manual save instantly
 		end)
+
+		RemotesFolder.NotificationEvent:FireClient(player, "Player data successfully wiped.", "Success")
 	end
 end)
 
@@ -408,6 +416,8 @@ local function LoadPlayer(player)
 	end
 
 	RollBounties(player)
+
+	-- THIS IS THE CRITICAL FLAG NEEDED TO SAVE DATA!
 	player:SetAttribute("DataLoaded", true)
 
 	pcall(function() PrestigeLB:SetAsync(userIdStr, pVal.Value) end)
@@ -420,7 +430,8 @@ for _, p in ipairs(Players:GetPlayers()) do task.spawn(function() LoadPlayer(p) 
 local lastSaveTimes = {}
 local savingPlayers = {}
 
-local function SavePlayer(p, isLeaving)
+-- Implementing the forward-declared function
+SavePlayer = function(p, isLeaving)
 	if not p then return end
 	if not p:GetAttribute("DataLoaded") then return end
 
