@@ -1,6 +1,6 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: InheritTab
+-- @ScriptType: ModuleScript
 local InheritTab = {}
 
 local Players = game:GetService("Players")
@@ -11,8 +11,9 @@ local TitanData = require(ReplicatedStorage:WaitForChild("TitanData"))
 
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 
-local effModule = script.Parent:WaitForChild("EffectsManager", 2)
-local EffectsManager = effModule and require(effModule) or nil
+-- Route directly to the new VFXManager!
+local vfxModule = script.Parent.Parent:WaitForChild("VFXManager", 2)
+local VFXManager = vfxModule and require(vfxModule) or nil
 
 local cinModule = script.Parent:WaitForChild("CinematicManager", 2)
 local CinematicManager = cinModule and require(cinModule) or nil
@@ -202,7 +203,7 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 				Network.GachaRoll:FireServer(gType, false)
 				task.delay(5, function() if isRolling[gType] and currentRollSeq[gType] == seq then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI() end end)
 			else
-				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Error", 1) end
+				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if VFXManager then VFXManager.PlaySFX("Error", 1) end
 				task.delay(1.5, function() if not isRolling[gType] then ResultLbl.Text = "Current: " .. (player:GetAttribute(gType) or "None") end end)
 			end
 		end)
@@ -215,7 +216,7 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 				Network.GachaRoll:FireServer(gType, true)
 				task.delay(5, function() if isRolling[gType] and currentRollSeq[gType] == seq then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI() end end)
 			else
-				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Error", 1) end
+				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if VFXManager then VFXManager.PlaySFX("Error", 1) end
 				task.delay(1.5, function() if not isRolling[gType] then ResultLbl.Text = "Current: " .. (player:GetAttribute(gType) or "None") end end)
 			end
 		end)
@@ -229,7 +230,7 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 				Network.GachaRoll:FireServer(gType, false)
 				task.delay(5, function() if isRolling[gType] and currentRollSeq[gType] == seq then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI() end end)
 			else
-				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Error", 1) end
+				ResultLbl.Text = "<font color='#FF5555'>Not enough items!</font>"; if VFXManager then VFXManager.PlaySFX("Error", 1) end
 				task.delay(1.5, function() if not isRolling[gType] then ResultLbl.Text = "Current: " .. (player:GetAttribute(gType) or "None") end end)
 			end
 		end)
@@ -284,7 +285,7 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 	player.AttributeChanged:Connect(UpdateUI); UpdateUI()
 
 	Network.GachaResult.OnClientEvent:Connect(function(gType, resultName, resultRarity)
-		if resultName == "Error" then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI(); if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Error", 1) end return end
+		if resultName == "Error" then isRolling[gType] = false; isAutoRolling[gType] = false; UpdateUI(); if VFXManager then VFXManager.PlaySFX("Error", 1) end return end
 
 		local targetLbl = (gType == "Titan") and tResult or cResult
 		local names = {}
@@ -292,13 +293,13 @@ function InheritTab.Init(parentFrame, tooltipMgr)
 
 		for i = 1, 20 do 
 			if not MainFrame.Visible then break end
-			if EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Spin", 1 + (i/25)) end
+			if VFXManager then VFXManager.PlaySFX("Click", 1 + (i/20)) end
 			targetLbl.Text = names[math.random(1, #names)]; task.wait(0.05) 
 		end
 
 		local cColor = RarityColors[resultRarity] or "#FFFFFF"
 		targetLbl.Text = "<b><font color='" .. cColor .. "'>" .. resultName:upper() .. "!</font></b>"
-		if MainFrame.Visible and EffectsManager and type(EffectsManager.PlaySFX) == "function" then EffectsManager.PlaySFX("Reveal", 1) end
+		if MainFrame.Visible and VFXManager then VFXManager.PlaySFX("Reveal", 1) end
 
 		if resultRarity == "Mythical" or resultRarity == "Transcendent" then
 			local cinemColor = (resultRarity == "Mythical") and "#FF3333" or "#FF55FF"
