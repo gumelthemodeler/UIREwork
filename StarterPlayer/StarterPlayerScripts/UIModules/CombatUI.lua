@@ -83,6 +83,12 @@ local function AppendLog(message, colorHex)
 	if logCount > 30 then for _, c in ipairs(children) do if c:IsA("Frame") then c:Destroy() break end end end
 end
 
+local function HideAlly()
+	if GUI and GUI.AllyPanel and GUI.AllyPanel.Position.Y.Scale < 1 then
+		TweenService:Create(GUI.AllyPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 1.5, 0)}):Play()
+	end
+end
+
 local function UpdateState(data)
 	if not data or not data.Battle or not GUI then return end
 	currentBattleState = data.Battle; local battle = data.Battle
@@ -131,13 +137,18 @@ local function UpdateState(data)
 			TweenService:Create(GUI.eHPBar, tInfo, {Size = UDim2.new(maxHP > 0 and (safeHP / maxHP) or 0, 0, 1, 0)}):Play()
 
 			local maxGate = battle.Enemy.MaxGateHP or 0
-			if maxGate > 0 then
+			local safeGate = math.max(0, battle.Enemy.GateHP or 0)
+
+			if maxGate > 0 and safeGate > 0 then
 				GUI.eGateContainer.Visible = true
-				local safeGate = math.max(0, battle.Enemy.GateHP or 0)
-				GUI.eGateText.Text = "ARMOR " .. math.floor(safeGate) .. "/" .. math.floor(maxGate)
+				-- [[ THE FIX: Name the bar appropriately based on GateType! ]]
+				local gateLabel = (battle.Enemy.GateType == "Steam") and "STEAM " or "ARMOR "
+				GUI.eGateText.Text = gateLabel .. math.floor(safeGate) .. "/" .. math.floor(maxGate)
 				TweenService:Create(GUI.eGateBar, tInfo, {Size = UDim2.new(safeGate / maxGate, 0, 1, 0)}):Play()
+				GUI.eHPText.Visible = false 
 			else
 				GUI.eGateContainer.Visible = false
+				GUI.eHPText.Visible = true 
 			end
 		end
 	end
@@ -167,11 +178,10 @@ local function UpdateSkills()
 		elseif myTitan == "Female Titan" then defaultClose[4] = "Crystal Kick"
 		elseif myTitan == "Beast Titan" then defaultClose[4] = "Pitching Ace"
 		elseif myTitan == "Colossal Titan" then defaultClose[4] = "Colossal Steam" end
+		defaultLong = defaultClose
 	end
 
 	local fallbacks = (currentRange == "Close") and defaultClose or defaultLong
-
-	-- [[ THE FIX: Deduplication logic so manually added buttons don't double up! ]]
 	local createdSkills = {}
 
 	local function CreateSkillButton(skillName, customLabel, baseColor)
@@ -184,9 +194,14 @@ local function UpdateSkills()
 		local hasGas, hasHeat, isWrongRange = true, true, false
 
 		if sData then
-			if sData.GasCost and (pState.Gas or 0) < sData.GasCost then hasGas = false end
+			if not isTransformed and sData.GasCost and (pState.Gas or 0) < sData.GasCost then hasGas = false end
 			if sData.EnergyCost and (pState.TitanEnergy or 0) < sData.EnergyCost then hasHeat = false end
 			if sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange then isWrongRange = true end
+		end
+
+		if skillName == "Retreat" or skillName == "Close In" or skillName == "Fall Back" then
+			hasGas = true
+			isWrongRange = false
 		end
 
 		local btnText = customLabel or string.upper(skillName)
@@ -210,6 +225,7 @@ local function UpdateSkills()
 			if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
 			btn.MouseButton1Click:Connect(function()
 				if inputLocked then return end
+				HideAlly()
 				if InstantSkills[skillName] then
 					inputLocked = true
 					for _, c in ipairs(GUI.ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
@@ -247,7 +263,7 @@ local function UpdateSkills()
 	CreateSkillButton(rSkill, string.upper(rSkill), "#55FF55")
 
 	if currentRange == "Close" then CreateSkillButton("Fall Back", "FALL BACK", "#FFAA55")
-	else CreateSkillButton("Close In", "CLOSE IN", "#FFAA55") end
+	else CreateSkillButton("Close In", isTransformed and "CHARGE" or "CLOSE IN", "#FFAA55") end
 
 	local hasTitan = player:GetAttribute("Titan") and player:GetAttribute("Titan") ~= "None"
 	if GUI.pHeatContainer then GUI.pHeatContainer.Visible = hasTitan end
@@ -257,9 +273,34 @@ local function UpdateSkills()
 	CreateSkillButton("Retreat", "FLEE", "#FF5555")
 end
 
+local function CloseUI()
+	pendingSkillName = nil
+	inputLocked = true
+	HideAlly()
+
+	if GUI.WindowScale then
+		local t1 = TweenService:Create(GUI.WindowScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+		t1:Play()
+		t1.Completed:Wait()
+	end
+
+	if GUI.CombatBackdrop then
+		local t2 = TweenService:Create(GUI.CombatBackdrop, TweenInfo.new(0.2), {BackgroundTransparency = 1})
+		t2:Play()
+		GUI.CombatBackdrop.Visible = false
+	end
+
+	if GUI.CombatWindow then GUI.CombatWindow.Visible = false end
+	currentBattleState = nil
+
+	local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
+	if MusicManager then MusicManager.SetCategory("Lobby") end
+end
+
 local function ShowUI(data)
 	pendingSkillName = nil
 	inputLocked = false
+	HideAlly()
 
 	if GUI.CombatBackdrop then
 		GUI.CombatBackdrop.Visible = true
@@ -298,25 +339,6 @@ local function ShowUI(data)
 	UpdateSkills()
 end
 
-local function CloseUI()
-	pendingSkillName = nil
-	inputLocked = true
-
-	if GUI.WindowScale then
-		local t1 = TweenService:Create(GUI.WindowScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
-		t1:Play()
-		t1.Completed:Wait()
-	end
-
-	if GUI.CombatBackdrop then
-		local t2 = TweenService:Create(GUI.CombatBackdrop, TweenInfo.new(0.2), {BackgroundTransparency = 1})
-		t2:Play()
-		GUI.CombatBackdrop.Visible = false
-	end
-
-	if GUI.CombatWindow then GUI.CombatWindow.Visible = false end
-	currentBattleState = nil
-end
 
 -- ==========================================
 -- INITIALIZATION
@@ -332,6 +354,8 @@ function CombatUI.Initialize(masterScreenGui)
 		limbBtn.MouseButton1Click:Connect(function()
 			if pendingSkillName and not inputLocked then
 				inputLocked = true
+				HideAlly()
+
 				if GUI.TargetMenu then GUI.TargetMenu.Visible = false end
 				if GUI.ActionGrid then GUI.ActionGrid.Visible = true end
 
@@ -409,9 +433,9 @@ function CombatUI.Initialize(masterScreenGui)
 						GUI.DialogueText.Text = string.sub(line.Text, 1, charIdx)
 						if charIdx % 2 == 0 then
 							local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
-							if VFXManager then VFXManager.PlaySFX("Click", 1.5, 0.2) end
+							if VFXManager then VFXManager.PlaySFX("Click", 1.8, 0.1) end
 						end
-						task.wait(0.015)
+						task.wait(0.008)
 					end
 					isTypewriting = false
 					GUI.ContinueHint.Visible = true
@@ -457,7 +481,24 @@ function CombatUI.Initialize(masterScreenGui)
 			UpdateState(data)
 
 			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
-			if VFXManager and data then VFXManager.PlayCombatEffect(data.SkillUsed, data.IsPlayerAttacking, GUI.pAvatar, GUI.eAvatar, data.DidHit) end
+
+			if data.AllyIntervention then
+				if GUI.AllyPanel then
+					GUI.AllyPanel.Position = UDim2.new(0.5, 0, 1.5, 0)
+					GUI.AllyNameLbl.Text = string.upper(data.AllyIntervention)
+					local EnemyDataModule = require(ReplicatedStorage:WaitForChild("EnemyData"))
+					if EnemyDataModule and EnemyDataModule.BossIcons and EnemyDataModule.BossIcons[data.AllyIntervention] then
+						GUI.AllyAvatar.Image = EnemyDataModule.BossIcons[data.AllyIntervention]
+					else
+						GUI.AllyAvatar.Image = "rbxassetid://90132878979603"
+					end
+					TweenService:Create(GUI.AllyPanel, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0.32, 0)}):Play()
+				end
+
+				if VFXManager and data then VFXManager.PlayCombatEffect(data.SkillUsed, true, GUI.AllyAvatar, GUI.eAvatar, data.DidHit) end
+			else
+				if VFXManager and data then VFXManager.PlayCombatEffect(data.SkillUsed, data.IsPlayerAttacking, GUI.pAvatar, GUI.eAvatar, data.DidHit) end
+			end
 
 			if data and data.ShakeType == "Heavy" then if VFXManager then VFXManager.ScreenShake(0.5, 0.25) end
 			elseif data and data.ShakeType == "Light" then if VFXManager then VFXManager.ScreenShake(0.2, 0.15) end end
@@ -465,6 +506,7 @@ function CombatUI.Initialize(masterScreenGui)
 			if data and data.LogMsg then AppendLog(data.LogMsg, data.IsPlayerAttacking and "#55AAFF" or "#FF5555") end
 
 		elseif action == "WaveComplete" then
+			HideAlly()
 			if GUI.CombatantsFrame then GUI.CombatantsFrame.Visible = true end
 			if GUI.LogContainer then GUI.LogContainer.Visible = true end
 			if GUI.ActionContainer then GUI.ActionContainer.Visible = true end
@@ -472,6 +514,17 @@ function CombatUI.Initialize(masterScreenGui)
 			UpdateState(data)
 			AppendLog("<b><font color='#55FF55'>WAVE CLEARED!</font></b>", "#55FF55")
 			if data and data.LogMsg then AppendLog(data.LogMsg, "#FFD700") end
+
+			if data and data.XP and data.Dews then
+				if data.XP > 0 or data.Dews > 0 then
+					AppendLog("<font color='#55FF55'>Gained " .. data.XP .. " XP and " .. data.Dews .. " Dews.</font>")
+				end
+			end
+			if data and data.Items and #data.Items > 0 then
+				for _, item in ipairs(data.Items) do
+					AppendLog("<font color='#FFD700'>Looted: " .. item.Amount .. "x " .. item.Name .. "</font>")
+				end
+			end
 
 			inputLocked = true
 			if GUI.ActionGrid then
@@ -490,12 +543,11 @@ function CombatUI.Initialize(masterScreenGui)
 				retreatBtn.MouseButton1Click:Connect(function()
 					Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Retreat"})
 					CloseUI()
-					local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
-					if MusicManager then MusicManager.SetCategory("Lobby") end
 				end)
 			end
 
 		elseif action == "Victory" then
+			HideAlly()
 			if GUI.CombatantsFrame then GUI.CombatantsFrame.Visible = true end
 			if GUI.LogContainer then GUI.LogContainer.Visible = true end
 			if GUI.ActionContainer then GUI.ActionContainer.Visible = true end
@@ -504,6 +556,13 @@ function CombatUI.Initialize(masterScreenGui)
 
 			local xpGained = data and data.XP or 0; local dewsGained = data and data.Dews or 0
 			AppendLog("<b><font color='#55FF55'>VICTORY!</font></b>\nEarned " .. xpGained .. " XP and " .. dewsGained .. " Dews.", "#55FF55")
+
+			if data and data.Items and #data.Items > 0 then
+				for _, item in ipairs(data.Items) do
+					AppendLog("<font color='#FFD700'>Looted: " .. item.Amount .. "x " .. item.Name .. "</font>")
+				end
+			end
+
 			if data and data.ExtraLog and data.ExtraLog ~= "" then AppendLog(data.ExtraLog) end
 
 			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
@@ -527,12 +586,11 @@ function CombatUI.Initialize(masterScreenGui)
 				local closeBtn = CreateMinimalButton(GUI.ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#55FF55")
 				closeBtn.MouseButton1Click:Connect(function() 
 					CloseUI() 
-					local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
-					if MusicManager then MusicManager.SetCategory("Lobby") end
 				end)
 			end
 
 		elseif action == "Defeat" or action == "PathsDeath" then
+			HideAlly()
 			if GUI.CombatantsFrame then GUI.CombatantsFrame.Visible = true end
 			if GUI.LogContainer then GUI.LogContainer.Visible = true end
 			if GUI.ActionContainer then GUI.ActionContainer.Visible = true end
@@ -554,18 +612,15 @@ function CombatUI.Initialize(masterScreenGui)
 				local closeBtn = CreateMinimalButton(GUI.ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#FF5555")
 				closeBtn.MouseButton1Click:Connect(function() 
 					CloseUI() 
-					local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
-					if MusicManager then MusicManager.SetCategory("Lobby") end
 				end)
 			end
 
 		elseif action == "Fled" then
+			HideAlly()
 			if GUI.CombatantsFrame then GUI.CombatantsFrame.Visible = true end
 			AppendLog("<b><font color='#AAAAAA'>YOU FLED THE BATTLE.</font></b>", "#AAAAAA")
 			task.wait(1.5)
 			CloseUI()
-			local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
-			if MusicManager then MusicManager.SetCategory("Lobby") end
 		end
 	end)
 end
