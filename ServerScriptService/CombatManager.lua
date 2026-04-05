@@ -20,8 +20,6 @@ end
 
 local CombatAction = GetRemote("CombatAction")
 local CombatUpdate = GetRemote("CombatUpdate")
-
--- [[ THE FIX: Injecting the new VFX Remote ]]
 local PlayVFX = GetRemote("PlayVFX") 
 
 local ActiveBattles = {}
@@ -333,8 +331,6 @@ local function ProcessEnemyDeath(player, battle)
 
 		battle.Context.StoredBoss = nil; battle.Context.TurnCount = 0 
 		CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#55FF55'>The Summoned Titan falls! The Founder is exposed!</font>", DidHit = false, ShakeType = "Heavy"})
-
-		-- [[ VFX: Titan death/roar when summoned titan falls ]]
 		PlayVFX:FireClient(player, "TitanRoar", "Enemy")
 
 		task.wait(turnDelay)
@@ -385,7 +381,6 @@ local function ProcessEnemyDeath(player, battle)
 		local healAmt = math.floor(pMax * battle.Player.AwakenedStats.HealOnKill)
 		battle.Player.HP = math.min(pMax, pCur + healAmt)
 		killMsg = killMsg .. "<br/><font color='#55FF55'>[Awakened: Healed " .. healAmt .. " HP!]</font>"
-		-- [[ VFX: Play Heal Effect ]]
 		PlayVFX:FireClient(player, "Heal", "Self")
 	end
 
@@ -529,6 +524,22 @@ local function ProcessEnemyDeath(player, battle)
 		local waveData = battle.Context.MissionData.Waves[battle.Context.CurrentWave]
 		local nextEnemyTemplate = GetTemplate(partData, waveData.Template)
 
+		-- [[ THE FIX: Route Dialogue Nodes to the Client instead of starting a fight ]]
+		if nextEnemyTemplate.IsDialogue then
+			battle.Context.TurnCount = 0; battle.Context.StoredBoss = nil
+			battle.Enemy = {
+				IsMinigame = false, IsDialogue = true, Name = nextEnemyTemplate.Speaker or "Story", IsHuman = true, IsNightmare = false,
+				HP = 1, MaxHP = 1, GateType = nil, GateHP = 0, MaxGateHP = 0, TotalStrength = 0, TotalDefense = 0, TotalSpeed = 0,
+				Statuses = {}, Cooldowns = {}, Skills = {}, Drops = { XP = 0, Dews = 0, ItemChance = {} }, LastSkill = "None"
+			}
+			battle.Player.Cooldowns = {}; battle.Player.Statuses = {} 
+			battle.Player.HP = battle.Player.MaxHP; battle.Player.Gas = battle.Player.MaxGas; battle.Player.LastSkill = "None"
+
+			CombatUpdate:FireClient(player, "Dialogue", { Speaker = nextEnemyTemplate.Speaker or "Unknown", Text = nextEnemyTemplate.Text or waveData.Flavor, Battle = battle })
+			battle.IsProcessing = false
+			return
+		end
+
 		local dropMult = 1.0 + (battle.Context.TargetPart * 0.1) + (prestige * 0.25)
 		local nextBaseDropXP = nextEnemyTemplate.Drops and nextEnemyTemplate.Drops.XP or 15
 		local nextBaseDropDews = nextEnemyTemplate.Drops and nextEnemyTemplate.Drops.Dews or 10
@@ -582,13 +593,15 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 
 	if actionType == "MinigameResult" then
 		local battle = ActiveBattles[player.UserId]
-		if not battle or not battle.Enemy.IsMinigame then return end
-
-		if actionData.Success then
-			ProcessEnemyDeath(player, battle)
-		else
-			CombatUpdate:FireClient(player, "Defeat", {Battle = battle})
-			ActiveBattles[player.UserId] = nil
+		if not battle then return end
+		-- Proceed if it's a minigame OR a dialogue node
+		if battle.Enemy.IsMinigame or actionData.MinigameType == "Dialogue" then
+			if actionData.Success then
+				ProcessEnemyDeath(player, battle)
+			else
+				CombatUpdate:FireClient(player, "Defeat", {Battle = battle})
+				ActiveBattles[player.UserId] = nil
+			end
 		end
 		return
 	end
@@ -622,7 +635,6 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	battle.IsProcessing = true
 	local turnDelay = player:GetAttribute("HasDoubleSpeed") and 0.75 or 1.5
 
-	-- [[ VFX: Maneuver Hook ]]
 	if skillName == "Maneuver" or skillName == "Evasive Maneuver" or skillName == "Smoke Screen" or skillName == "Advance" or skillName == "Close In" then 
 		PlayVFX:FireClient(player, "Maneuver", "Self")
 		if skillName == "Maneuver" then UpdateBountyProgress(player, "Maneuver", 1) end
@@ -642,27 +654,19 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 			end
 			CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = msg, DidHit = didHit, ShakeType = shakeType, SkillUsed = strikeSkill, IsPlayerAttacking = attacker.IsPlayer})
 
-			-- [[ VFX: Play Core Attack VFX if the strike landed ]]
 			if didHit then
 				if attacker.IsPlayer then
-					if shakeType == "Heavy" then
-						PlayVFX:FireClient(player, "PlayerCritical", "Enemy")
-					else
-						PlayVFX:FireClient(player, "PlayerSlash", "Enemy")
-					end
+					if shakeType == "Heavy" then PlayVFX:FireClient(player, "PlayerCritical", "Enemy")
+					else PlayVFX:FireClient(player, "PlayerSlash", "Enemy") end
 				else
 					if string.find(strikeSkill:lower(), "bite") or string.find(strikeSkill:lower(), "chomp") then
 						PlayVFX:FireClient(player, "TitanBite", "Self")
 					else
-						if shakeType == "Heavy" then
-							PlayVFX:FireClient(player, "PlayerCritical", "Self") -- Re-using the heavy crunch sound
-						else
-							PlayVFX:FireClient(player, "PlayerSlash", "Self")
-						end
+						if shakeType == "Heavy" then PlayVFX:FireClient(player, "PlayerCritical", "Self")
+						else PlayVFX:FireClient(player, "PlayerSlash", "Self") end
 					end
 				end
 			else
-				-- [[ VFX: Play Block sound if they dodged/blocked ]]
 				PlayVFX:FireClient(player, "Block", "Self")
 			end
 
@@ -829,9 +833,10 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 
 				if aiSkill ~= "Advance" and SkillData.Skills[aiSkill] and SkillData.Skills[aiSkill].Telegraphed then
 					combatant.Statuses["Telegraphing"] = aiSkill
-					CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<b><font color='#FFAA00'>WARNING: " .. combatant.Name .. " is charging up " .. aiSkill:upper() .. "! Brace yourself!</font></b>", DidHit = false, ShakeType = "Heavy"})
+					-- [[ THE FIX: Added explicit instructions for the player to DODGE or BLOCK during boss telegraphs! ]]
+					local hintStr = " <font color='#55FF55'>[HINT: USE EVASIVE MANEUVER OR BLOCK!]</font>"
+					CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<b><font color='#FFAA00'>WARNING: " .. combatant.Name .. " is charging up " .. aiSkill:upper() .. "!</font></b>" .. hintStr, DidHit = false, ShakeType = "Heavy"})
 
-					-- [[ VFX: Telegraphed Attack Roar ]]
 					PlayVFX:FireClient(player, "TitanRoar", "Enemy")
 
 					task.wait(turnDelay)
@@ -888,8 +893,6 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 				battle.Enemy.Cooldowns = {}
 
 				CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#FF5555'>The Founding Titan summoned a Pure Titan to protect itself!</font>", DidHit = false, ShakeType = "Heavy"})
-
-				-- [[ VFX: Summon Titan Roar ]]
 				PlayVFX:FireClient(player, "TitanRoar", "Enemy")
 
 				task.wait(turnDelay)
@@ -913,7 +916,18 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	elseif battle.Enemy.HP < 1 then
 		ProcessEnemyDeath(player, battle)
 	else
-		if not battle.Player.Statuses or not battle.Player.Statuses["Transformed"] then battle.Player.TitanEnergy = math.min(100, (battle.Player.TitanEnergy or 0) + 15) end
+		if not battle.Player.Statuses or not battle.Player.Statuses["Transformed"] then 
+			battle.Player.TitanEnergy = math.min(100, (battle.Player.TitanEnergy or 0) + 15) 
+		end
+
+		-- [[ THE FIX: Actually Decrement Cooldowns each turn! ]]
+		for sName, cd in pairs(battle.Player.Cooldowns or {}) do
+			if cd > 0 then battle.Player.Cooldowns[sName] = cd - 1 end
+		end
+		for sName, cd in pairs(battle.Enemy.Cooldowns or {}) do
+			if cd > 0 then battle.Enemy.Cooldowns[sName] = cd - 1 end
+		end
+
 		battle.IsProcessing = false
 		CombatUpdate:FireClient(player, "Update", {Battle = battle})
 	end
