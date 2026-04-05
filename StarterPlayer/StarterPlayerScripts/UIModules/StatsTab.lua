@@ -33,12 +33,18 @@ local function AbbreviateNumber(n)
 	return str .. (Suffixes[suffixIndex + 1] or "")
 end
 
--- [[ THE FIX 1: Decoupled math functions guarantee the UI never throws a 'nil' error during calculation ]]
+-- [[ BULLETPROOF FALLBACKS ]]
 local function SafeGetStatCap(prestige)
+	if GameData and type(GameData.GetStatCap) == "function" then 
+		return GameData.GetStatCap(prestige) 
+	end
 	return 100 + ((prestige or 0) * 10)
 end
 
 local function SafeCalculateStatCost(currentStat, baseStat, prestige)
+	if GameData and type(GameData.CalculateStatCost) == "function" then 
+		return GameData.CalculateStatCost(currentStat, baseStat, prestige) 
+	end
 	local baseCost = 10
 	local growthFactor = 1.05
 	local prestigeMultiplier = math.max(0.1, 1 - ((prestige or 0) * 0.03))
@@ -49,7 +55,7 @@ end
 local function ParseStat(rawStat)
 	local val = tonumber(rawStat)
 	if val then return val end
-	if type(rawStat) == "string" and GameData.TitanRanks and GameData.TitanRanks[rawStat] then
+	if type(rawStat) == "string" and GameData and GameData.TitanRanks and GameData.TitanRanks[rawStat] then
 		return GameData.TitanRanks[rawStat]
 	end
 	return 10
@@ -62,12 +68,19 @@ local function GetCombinedBonus(statName)
 	local bonus = 0
 	if ItemData.Equipment and ItemData.Equipment[wpn] and ItemData.Equipment[wpn].Bonus and ItemData.Equipment[wpn].Bonus[statName] then bonus += ItemData.Equipment[wpn].Bonus[statName] end
 	if ItemData.Equipment and ItemData.Equipment[acc] and ItemData.Equipment[acc].Bonus and ItemData.Equipment[acc].Bonus[statName] then bonus += ItemData.Equipment[acc].Bonus[statName] end
-	if GameData.WeaponBonuses and GameData.WeaponBonuses[style] and GameData.WeaponBonuses[style][statName] then bonus += GameData.WeaponBonuses[style][statName] end
+	if GameData and GameData.WeaponBonuses and GameData.WeaponBonuses[style] and GameData.WeaponBonuses[style][statName] then bonus += GameData.WeaponBonuses[style][statName] end
 	return bonus
 end
 
 local function GetUpgradeCosts(currentStat, cleanName, prestige)
-	local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+	local base = 10
+	if prestige == 0 then
+		if GameData and GameData.BaseStats and GameData.BaseStats[cleanName] then
+			base = GameData.BaseStats[cleanName]
+		end
+	else
+		base = prestige * 5
+	end
 	return SafeCalculateStatCost(currentStat, base, prestige)
 end
 
@@ -96,7 +109,15 @@ local function CreateStatRow(statName, parent, isTitan, layoutOrder, amtInput)
 		local currentStat = ParseStat(player:GetAttribute(statName))
 		local currentXP = isTitan and (tonumber(player:GetAttribute("TitanXP")) or 0) or (tonumber(player:GetAttribute("XP")) or 0)
 		local cleanName = statName:gsub("_Val", ""):gsub("Titan_", "")
-		local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+
+		local base = 10
+		if prestige == 0 then
+			if GameData and GameData.BaseStats and GameData.BaseStats[cleanName] then
+				base = GameData.BaseStats[cleanName]
+			end
+		else
+			base = prestige * 5
+		end
 
 		if currentStat >= statCap then isUpgrading = false; return end
 
@@ -113,7 +134,6 @@ local function CreateStatRow(statName, parent, isTitan, layoutOrder, amtInput)
 			end
 		end
 
-		-- [[ THE FIX 2: Chunk the MAX upgrades so the server doesn't reject massive single requests! ]]
 		if added > 0 then
 			task.spawn(function()
 				local remaining = added
@@ -198,7 +218,15 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 				local upgradedAny = false
 				for _, s in ipairs(statList) do
 					local cleanName = s:gsub("_Val", ""):gsub("Titan_", "")
-					local base = (prestige == 0) and (GameData.BaseStats and GameData.BaseStats[cleanName] or 10) or (prestige * 5)
+					local base = 10
+					if prestige == 0 then
+						if GameData and GameData.BaseStats and GameData.BaseStats[cleanName] then
+							base = GameData.BaseStats[cleanName]
+						end
+					else
+						base = prestige * 5
+					end
+
 					if simStats[s] < statCap then
 						local cost = SafeCalculateStatCost(simStats[s], base, prestige)
 						if simXP >= cost then 
@@ -209,7 +237,6 @@ function StatsTab.Init(parentFrame, tooltipMgr)
 				if not upgradedAny then break end
 			end
 
-			-- [[ THE FIX 3: Wait intervals between specific stat upgrades so server doesn't reject concurrent calls! ]]
 			if totalUpgrades > 0 then
 				task.spawn(function()
 					for s, amt in pairs(tallies) do 
