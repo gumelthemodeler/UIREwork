@@ -121,11 +121,13 @@ function CombatBuilder.Build(masterScreenGui, player)
 	GUI.CombatantsFrame.Size = UDim2.new(1, -40, 0, 135)
 	GUI.CombatantsFrame.Position = UDim2.new(0, 20, 0, 55)
 	GUI.CombatantsFrame.BackgroundTransparency = 1
+	GUI.CombatantsFrame.ClipsDescendants = true
 
-	local PlayerPanel, _ = CreateFlatPanel(GUI.CombatantsFrame)
-	PlayerPanel.Size = UDim2.new(0.46, 0, 1, 0)
+	GUI.PlayerPanel, _ = CreateFlatPanel(GUI.CombatantsFrame)
+	GUI.PlayerPanel.Size = UDim2.new(0.46, 0, 1, 0)
+	GUI.PlayerPanel.Position = UDim2.new(0, 0, 0, 0)
 
-	GUI.pAvatar = Instance.new("ImageLabel", PlayerPanel)
+	GUI.pAvatar = Instance.new("ImageLabel", GUI.PlayerPanel)
 	GUI.pAvatar.Size = UDim2.new(0, 90, 0, 90)
 	GUI.pAvatar.Position = UDim2.new(0, 15, 0, 15)
 	GUI.pAvatar.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
@@ -137,45 +139,43 @@ function CombatBuilder.Build(masterScreenGui, player)
 	pAvatarStroke.Color = Color3.fromRGB(85, 170, 255)
 	pAvatarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-	-- [[ NEW: Fully Fleshed Out Replicated Ally Panel! ]]
-	GUI.AllyPanel, _ = CreateFlatPanel(GUI.CombatWindow)
-	GUI.AllyPanel.Size = UDim2.new(0.4, 0, 0, 70)
-	GUI.AllyPanel.Position = UDim2.new(0.5, 0, 1.5, 0) 
-	GUI.AllyPanel.AnchorPoint = Vector2.new(0.5, 0)
-	GUI.AllyPanel.ZIndex = 50
+	GUI.AllyPanel, _ = CreateFlatPanel(GUI.CombatantsFrame)
+	GUI.AllyPanel.Size = UDim2.new(0.46, 0, 1, 0)
+	GUI.AllyPanel.Position = UDim2.new(-0.5, 0, 0, 0)
+	GUI.AllyPanel.ZIndex = 5
 
 	GUI.AllyAvatar = Instance.new("ImageLabel", GUI.AllyPanel)
-	GUI.AllyAvatar.Size = UDim2.new(0, 50, 0, 50)
-	GUI.AllyAvatar.Position = UDim2.new(0, 10, 0.5, 0)
-	GUI.AllyAvatar.AnchorPoint = Vector2.new(0, 0.5)
+	GUI.AllyAvatar.Size = UDim2.new(0, 90, 0, 90)
+	GUI.AllyAvatar.Position = UDim2.new(0, 15, 0, 15)
 	GUI.AllyAvatar.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 	GUI.AllyAvatar.ScaleType = Enum.ScaleType.Crop
-	GUI.AllyAvatar.ZIndex = 51
-	local allyStroke = Instance.new("UIStroke", GUI.AllyAvatar)
-	allyStroke.Color = Color3.fromRGB(85, 255, 255)
-	allyStroke.Thickness = 1
-	allyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	GUI.AllyAvatar.ZIndex = 6
+	local allyAvatarStrk = Instance.new("UIStroke", GUI.AllyAvatar)
+	allyAvatarStrk.Color = Color3.fromRGB(85, 255, 255)
+	allyAvatarStrk.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-	GUI.AllyNameLbl = UIHelpers.CreateLabel(GUI.AllyPanel, "ALLY NAME", UDim2.new(1, -80, 0, 20), Enum.Font.GothamBold, Color3.fromRGB(85, 255, 255), 14)
-	GUI.AllyNameLbl.Position = UDim2.new(0, 75, 0, 15)
+	GUI.AllyNameLbl = UIHelpers.CreateLabel(GUI.AllyPanel, "ALLY NAME", UDim2.new(1, -130, 0, 20), Enum.Font.GothamBold, Color3.fromRGB(85, 255, 255), 15)
+	GUI.AllyNameLbl.Position = UDim2.new(0, 120, 0, 10)
 	GUI.AllyNameLbl.TextXAlignment = Enum.TextXAlignment.Left
-	GUI.AllyNameLbl.ZIndex = 51
+	GUI.AllyNameLbl.ZIndex = 6
 
-	GUI.AllyStatusLbl = UIHelpers.CreateLabel(GUI.AllyPanel, "INTERVENING!", UDim2.new(1, -80, 0, 20), Enum.Font.GothamMedium, Color3.fromRGB(200, 200, 200), 12)
-	GUI.AllyStatusLbl.Position = UDim2.new(0, 75, 0, 35)
-	GUI.AllyStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
-	GUI.AllyStatusLbl.ZIndex = 51
+	GUI.AllyQuoteLbl = UIHelpers.CreateLabel(GUI.AllyPanel, '"I\'ve got your back!"', UDim2.new(1, -130, 1, -40), Enum.Font.GothamMedium, Color3.fromRGB(220, 220, 220), 13)
+	GUI.AllyQuoteLbl.Position = UDim2.new(0, 120, 0, 35)
+	GUI.AllyQuoteLbl.TextXAlignment = Enum.TextXAlignment.Left
+	GUI.AllyQuoteLbl.TextYAlignment = Enum.TextYAlignment.Top
+	GUI.AllyQuoteLbl.TextWrapped = true
+	GUI.AllyQuoteLbl.ZIndex = 6
 
-	GUI.pNameLbl = UIHelpers.CreateLabel(PlayerPanel, player.Name, UDim2.new(1, -130, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 15)
+	GUI.pNameLbl = UIHelpers.CreateLabel(GUI.PlayerPanel, player.Name, UDim2.new(1, -130, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 15)
 	GUI.pNameLbl.Position = UDim2.new(0, 120, 0, 10)
 	GUI.pNameLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-	GUI.pHPBar, GUI.pHPText = CreateFlatBar(PlayerPanel, "HP", "#44DD44", UDim2.new(0, 120, 0, 35), UDim2.new(1, -135, 0, 20), false, 1)
-	GUI.pGasBar, GUI.pGasText = CreateFlatBar(PlayerPanel, "GAS", "#AADDDD", UDim2.new(0, 120, 0, 60), UDim2.new(1, -135, 0, 20), false, 1)
-	GUI.pHeatBar, GUI.pHeatText, GUI.pHeatContainer = CreateFlatBar(PlayerPanel, "HEAT", "#FF8800", UDim2.new(0, 120, 0, 85), UDim2.new(1, -135, 0, 20), false, 1)
+	GUI.pHPBar, GUI.pHPText = CreateFlatBar(GUI.PlayerPanel, "HP", "#44DD44", UDim2.new(0, 120, 0, 35), UDim2.new(1, -135, 0, 20), false, 1)
+	GUI.pGasBar, GUI.pGasText = CreateFlatBar(GUI.PlayerPanel, "GAS", "#AADDDD", UDim2.new(0, 120, 0, 60), UDim2.new(1, -135, 0, 20), false, 1)
+	GUI.pHeatBar, GUI.pHeatText, GUI.pHeatContainer = CreateFlatBar(GUI.PlayerPanel, "HEAT", "#FF8800", UDim2.new(0, 120, 0, 85), UDim2.new(1, -135, 0, 20), false, 1)
 	GUI.pHeatContainer.Visible = false
 
-	GUI.PlayerStatusBox = Instance.new("Frame", PlayerPanel)
+	GUI.PlayerStatusBox = Instance.new("Frame", GUI.PlayerPanel)
 	GUI.PlayerStatusBox.Size = UDim2.new(1, -135, 0, 20)
 	GUI.PlayerStatusBox.Position = UDim2.new(0, 120, 0, 110)
 	GUI.PlayerStatusBox.BackgroundTransparency = 1
@@ -217,6 +217,44 @@ function CombatBuilder.Build(masterScreenGui, player)
 	eStatLayout.FillDirection = Enum.FillDirection.Horizontal
 	eStatLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	eStatLayout.Padding = UDim.new(0, 4)
+
+	-- [[ THE FIX: Rebuilt the Execute Overlay to be massive and cinematic! ]]
+	GUI.ExecuteOverlay = Instance.new("Frame", GUI.CombatWindow)
+	GUI.ExecuteOverlay.Size = UDim2.new(1, 0, 1, 0)
+	GUI.ExecuteOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	GUI.ExecuteOverlay.BackgroundTransparency = 0.5
+	GUI.ExecuteOverlay.ZIndex = 150
+	GUI.ExecuteOverlay.Visible = false
+
+	GUI.ExecuteBanner = Instance.new("TextButton", GUI.ExecuteOverlay)
+	GUI.ExecuteBanner.Size = UDim2.new(1.2, 0, 0, 180)
+	GUI.ExecuteBanner.Position = UDim2.new(0.5, 0, 0.5, 0)
+	GUI.ExecuteBanner.AnchorPoint = Vector2.new(0.5, 0.5)
+	GUI.ExecuteBanner.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+	GUI.ExecuteBanner.BorderSizePixel = 0
+	GUI.ExecuteBanner.AutoButtonColor = false
+	GUI.ExecuteBanner.Text = ""
+	GUI.ExecuteBanner.Rotation = -4
+	GUI.ExecuteBanner.ZIndex = 151
+
+	local exGrad = Instance.new("UIGradient", GUI.ExecuteBanner)
+	exGrad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.new(0,0,0)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 20, 20)), ColorSequenceKeypoint.new(1, Color3.new(0,0,0))}
+	exGrad.Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0), NumberSequenceKeypoint.new(0.8, 0), NumberSequenceKeypoint.new(1, 1)}
+
+	GUI.ExecuteText = UIHelpers.CreateLabel(GUI.ExecuteBanner, "FINISH IT", UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, Color3.fromRGB(255, 255, 255), 72)
+	GUI.ExecuteText.ZIndex = 152
+	local exStroke = Instance.new("UIStroke", GUI.ExecuteText)
+	exStroke.Color = Color3.new(0, 0, 0)
+	exStroke.Thickness = 5
+
+	local pulsator = Instance.new("UIScale", GUI.ExecuteBanner)
+	pulsator.Name = "Pulsator"
+
+	GUI.ExecuteFlash = Instance.new("Frame", GUI.ExecuteOverlay)
+	GUI.ExecuteFlash.Size = UDim2.new(1, 0, 1, 0)
+	GUI.ExecuteFlash.BackgroundColor3 = Color3.new(1, 1, 1)
+	GUI.ExecuteFlash.BackgroundTransparency = 1
+	GUI.ExecuteFlash.ZIndex = 155
 
 	-- LOG AREA
 	GUI.LogContainer, _ = CreateFlatPanel(GUI.CombatWindow)
