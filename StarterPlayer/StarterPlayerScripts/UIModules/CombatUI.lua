@@ -83,6 +83,66 @@ local function AppendLog(message, colorHex)
 	if logCount > 30 then for _, c in ipairs(children) do if c:IsA("Frame") then c:Destroy() break end end end
 end
 
+-- [[ THE FIX: Randomized Spread & Vacuum into Combat Log! ]]
+local function PlayLootAnimation(rewards)
+	if not GUI or not GUI.CombatWindow then return end
+
+	task.spawn(function()
+		for i, reward in ipairs(rewards) do
+			local popup = Instance.new("Frame", GUI.CombatWindow)
+			popup.Size = UDim2.new(0, 260, 0, 42)
+
+			-- Randomize the spawn spread across the middle of the screen
+			local startX = math.random(35, 65) / 100
+			local startY = math.random(30, 50) / 100
+			popup.Position = UDim2.new(startX, 0, startY, 0)
+
+			popup.AnchorPoint = Vector2.new(0.5, 0.5)
+			popup.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+			popup.BackgroundTransparency = 0.1
+			popup.ZIndex = 250
+
+			Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 6)
+
+			local stroke = Instance.new("UIStroke", popup)
+			stroke.Color = Color3.fromHex(reward.Color:gsub("#", ""))
+			stroke.Thickness = 2
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+			local lbl = UIHelpers.CreateLabel(popup, reward.Text, UDim2.new(1, 0, 1, 0), Enum.Font.GothamBlack, Color3.fromHex(reward.Color:gsub("#", "")), 16)
+			lbl.ZIndex = 251
+
+			local scale = Instance.new("UIScale", popup)
+			scale.Scale = 0
+
+			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
+			if VFXManager then VFXManager.PlaySFX("Reveal", 1.0 + (i * 0.05)) end
+
+			-- Phase 1: Burst In & Float randomly upwards
+			TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+			local floatTween = TweenService:Create(popup, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Position = UDim2.new(startX + math.random(-10, 10)/100, 0, startY - 0.15, 0)})
+			floatTween:Play()
+
+			task.delay(0.8, function()
+				-- Phase 2: Vacuum directly into the Combat Log!
+				local suckTween = TweenService:Create(popup, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.1, 0, 0.45, 0)})
+				local scaleDown = TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0})
+
+				suckTween:Play()
+				scaleDown:Play()
+
+				suckTween.Completed:Wait()
+
+				-- Phase 3: Add to Combat Log exact moment it vanishes
+				AppendLog("<font color='" .. reward.Color .. "'>Looted: " .. reward.Text .. "</font>")
+				popup:Destroy()
+			end)
+
+			task.wait(0.15) -- Stagger the drops rapidly like a combo
+		end
+	end)
+end
+
 local function HideAlly()
 	if GUI and GUI.AllyPanel and GUI.AllyPanel.Position.Y.Scale < 1 then
 		TweenService:Create(GUI.AllyPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 1.5, 0)}):Play()
@@ -141,7 +201,6 @@ local function UpdateState(data)
 
 			if maxGate > 0 and safeGate > 0 then
 				GUI.eGateContainer.Visible = true
-				-- [[ THE FIX: Name the bar appropriately based on GateType! ]]
 				local gateLabel = (battle.Enemy.GateType == "Steam") and "STEAM " or "ARMOR "
 				GUI.eGateText.Text = gateLabel .. math.floor(safeGate) .. "/" .. math.floor(maxGate)
 				TweenService:Create(GUI.eGateBar, tInfo, {Size = UDim2.new(safeGate / maxGate, 0, 1, 0)}):Play()
@@ -458,18 +517,21 @@ function CombatUI.Initialize(masterScreenGui)
 						if GUI.ActionContainer then GUI.ActionContainer.Visible = true end
 
 						local rewards = data.Battle and data.Battle.Enemy and data.Battle.Enemy.Rewards
-						local rewardStr = ""
+
+						local animRewards = {}
 						if rewards then
-							if rewards.ItemName then rewardStr = rewardStr .. " [" .. (rewards.Amount or 1) .. "x " .. rewards.ItemName .. "]" end
-							if rewards.Dews then rewardStr = rewardStr .. " [" .. rewards.Dews .. " Dews]" end
-							if rewards.XP then rewardStr = rewardStr .. " [" .. rewards.XP .. " XP]" end
+							if rewards.ItemName then
+								table.insert(animRewards, {Text = "+" .. (rewards.Amount or 1) .. " " .. rewards.ItemName, Color = "#FFD700"})
+							end
+							if rewards.Dews then
+								table.insert(animRewards, {Text = "+" .. rewards.Dews .. " Dews", Color = "#55FFFF"})
+							end
+							if rewards.XP then
+								table.insert(animRewards, {Text = "+" .. rewards.XP .. " XP", Color = "#55FF55"})
+							end
 						end
 
-						if rewardStr ~= "" then
-							AppendLog("<b><font color='#55FF55'>REWARDS OBTAINED:</font></b>\n<font color='#55FF55'>" .. rewardStr .. "</font>")
-							local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
-							if VFXManager then VFXManager.PlaySFX("Reveal", 1) end
-						end
+						if #animRewards > 0 then PlayLootAnimation(animRewards) end
 
 						Network:WaitForChild("CombatAction"):FireServer("MinigameResult", { Success = true, MinigameType = "Dialogue", Choice = idx }) 
 					end)
@@ -515,16 +577,26 @@ function CombatUI.Initialize(masterScreenGui)
 			AppendLog("<b><font color='#55FF55'>WAVE CLEARED!</font></b>", "#55FF55")
 			if data and data.LogMsg then AppendLog(data.LogMsg, "#FFD700") end
 
-			if data and data.XP and data.Dews then
-				if data.XP > 0 or data.Dews > 0 then
-					AppendLog("<font color='#55FF55'>Gained " .. data.XP .. " XP and " .. data.Dews .. " Dews.</font>")
-				end
+			local animRewards = {}
+			if data and data.XP and data.XP > 0 then
+				table.insert(animRewards, {Text = "+" .. data.XP .. " XP", Color = "#55FF55"})
+			end
+			if data and data.Dews and data.Dews > 0 then
+				table.insert(animRewards, {Text = "+" .. data.Dews .. " Dews", Color = "#55FFFF"})
 			end
 			if data and data.Items and #data.Items > 0 then
 				for _, item in ipairs(data.Items) do
-					AppendLog("<font color='#FFD700'>Looted: " .. item.Amount .. "x " .. item.Name .. "</font>")
+					if type(item) == "table" then
+						local amt = item.Amount or 1
+						local name = item.Name or "Unknown Item"
+						table.insert(animRewards, {Text = "+" .. amt .. " " .. name, Color = "#FFD700"})
+					elseif type(item) == "string" then
+						table.insert(animRewards, {Text = "+1 " .. item, Color = "#FFD700"})
+					end
 				end
 			end
+
+			if #animRewards > 0 then PlayLootAnimation(animRewards) end
 
 			inputLocked = true
 			if GUI.ActionGrid then
@@ -554,14 +626,28 @@ function CombatUI.Initialize(masterScreenGui)
 			if GUI.DialogueBox then GUI.DialogueBox.Visible = false end
 			UpdateState(data)
 
-			local xpGained = data and data.XP or 0; local dewsGained = data and data.Dews or 0
-			AppendLog("<b><font color='#55FF55'>VICTORY!</font></b>\nEarned " .. xpGained .. " XP and " .. dewsGained .. " Dews.", "#55FF55")
+			AppendLog("<b><font color='#55FF55'>VICTORY!</font></b>", "#55FF55")
 
+			local animRewards = {}
+			if data and data.XP and data.XP > 0 then
+				table.insert(animRewards, {Text = "+" .. data.XP .. " XP", Color = "#55FF55"})
+			end
+			if data and data.Dews and data.Dews > 0 then
+				table.insert(animRewards, {Text = "+" .. data.Dews .. " Dews", Color = "#55FFFF"})
+			end
 			if data and data.Items and #data.Items > 0 then
 				for _, item in ipairs(data.Items) do
-					AppendLog("<font color='#FFD700'>Looted: " .. item.Amount .. "x " .. item.Name .. "</font>")
+					if type(item) == "table" then
+						local amt = item.Amount or 1
+						local name = item.Name or "Unknown Item"
+						table.insert(animRewards, {Text = "+" .. amt .. " " .. name, Color = "#FFD700"})
+					elseif type(item) == "string" then
+						table.insert(animRewards, {Text = "+1 " .. item, Color = "#FFD700"})
+					end
 				end
 			end
+
+			if #animRewards > 0 then PlayLootAnimation(animRewards) end
 
 			if data and data.ExtraLog and data.ExtraLog ~= "" then AppendLog(data.ExtraLog) end
 
