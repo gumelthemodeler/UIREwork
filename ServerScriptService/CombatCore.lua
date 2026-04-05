@@ -25,7 +25,6 @@ function CombatCore.TickStatuses(combatant)
 	local dotDamage = 0
 	local dotLog = ""
 
-	-- [[ THE FIX: Tick Cooldowns at the START of the turn so the UI can register them first! ]]
 	if combatant.Cooldowns then
 		for sName, cd in pairs(combatant.Cooldowns) do
 			if type(cd) == "number" and cd > 0 then
@@ -230,7 +229,6 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 	local fLogName = "<font color='" .. tostring(logColor or "#FFFFFF") .. "'>" .. tostring(logName or "Attacker") .. "</font>"
 	local fDefName = "<font color='" .. tostring(defColor or "#FF5555") .. "'>" .. tostring(defName or "Defender") .. "</font>"
 
-	-- Setup Cooldown instantly upon use
 	if attacker.Cooldowns then attacker.Cooldowns[skillName] = tonumber(skill.Cooldown) or 0 end
 
 	local defGateHP = tonumber(defender.GateHP) or 0
@@ -244,7 +242,21 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		isSequenceCombo = true; comboMult = tonumber(skill.ComboMult) or 1.5 
 	end
 
-	if skill.Effect == "Block" or skillName == "Maneuver" or skillName == "Evasive Maneuver" then
+	if skill.Effect == "CloseGap" or skillName == "Close In" or skillName == "Advance" or skillName == "Charge" then
+		attacker.LastSkill = skillName
+		local moveWord = attacker.IsPlayer and "close" or "closes"
+		if attacker.Statuses and attacker.Statuses["Transformed"] then
+			return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#FFAA00'>" .. fLogName .. " charges forward with immense speed!</font>", false, "Heavy"
+		else
+			return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#55AAFF'>" .. fLogName .. " uses their ODM gear to " .. moveWord .. " the distance!</font>", false, "None"
+		end
+
+	elseif skill.Effect == "CreateGap" or skillName == "Fall Back" then
+		attacker.LastSkill = skillName
+		local moveWord = attacker.IsPlayer and "fall" or "falls"
+		return fLogName .. " used <b>" .. skillName .. "</b>! <font color='#FFAA55'>" .. fLogName .. " " .. moveWord .. " back to Long Range!</font>", false, "None"
+
+	elseif skill.Effect == "Block" or skillName == "Maneuver" or skillName == "Evasive Maneuver" then
 		if not attacker.Statuses then attacker.Statuses = {} end
 		local blind = tonumber(attacker.Statuses.Blinded) or 0
 		local trueBlind = tonumber(attacker.Statuses.TrueBlind) or 0
@@ -351,6 +363,15 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		elseif not defender.IsPlayer then dodgeChance = math.clamp(dodgeChance, 0, 20)
 		else dodgeChance = math.clamp(dodgeChance, 0, 75) end
 
+		local effectLog = ""
+
+		-- [[ THE FIX: Provide explicit visual feedback if Maneuver fails due to Immobilize! ]]
+		if isDodging and defender.Statuses and (tonumber(defender.Statuses.Immobilized) or 0) > 0 then
+			dodgeChance = 0
+			isDodging = false
+			effectLog = effectLog .. " <font color='#FF5555'>[IMMOBILIZED: Dodge Failed!]</font>"
+		end
+
 		if defender.Statuses and (tonumber(defender.Statuses.Immobilized) or 0) > 0 then dodgeChance = 0 end
 
 		if math.random(1, 100) <= (dodgeChance or 0) then
@@ -380,7 +401,6 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		local baseDmg = CombatCore.CalculateDamage(attacker, defender, mult, targetLimb)
 		local survivalTriggered, hitGate, gateBroken, hpDmg, gateName = CombatCore.TakeDamage(defender, baseDmg, attacker.Style)
 
-		local effectLog = ""
 		local isArmored = defender.GateType == "Reinforced Skin" and (tonumber(defender.GateHP) or 0) > 0
 
 		if attacker.Name == "Doomsday Apparition" and defender.IsPlayer then
@@ -440,6 +460,7 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 				else
 					if not appliedThisStrike[safeEffect] then
 						local appliedDur = tonumber(skill.Duration) or 2
+						if safeEffect ~= "Bleed" and safeEffect ~= "Burn" then appliedDur = appliedDur + 1 end
 						defender.Statuses[safeEffect] = appliedDur
 						effectLog = effectLog .. " <font color='#AA55FF'>[" .. safeEffect:upper() .. "]</font>"
 						appliedThisStrike[safeEffect] = true
@@ -546,7 +567,6 @@ function CombatCore.ExecuteStrike(attacker, defender, skillName, targetLimb, log
 		end
 	end
 
-	attacker.LastSkill = skillName
 	return finalMsg, didHitAtAll, overallShake
 end
 
