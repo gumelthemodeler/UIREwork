@@ -454,6 +454,31 @@ function CombatUI.Initialize(masterScreenGui)
 			CombatUI.UpdateState(data)
 			CombatUI.UpdateSkills()
 
+			-- [[ THE FIX: Interactive Dialogue State for Semi-Text RPG integration! ]]
+		elseif action == "Dialogue" then
+			CombatUI.UpdateState(data)
+
+			inputLocked = true
+			ActionGrid.Visible = true
+			TargetMenu.Visible = false
+
+			-- Clear existing combat log and action buttons
+			for _, c in ipairs(LogScroll:GetChildren()) do if c:IsA("Frame") then c:Destroy() end end
+			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") or c:IsA("TextLabel") then c:Destroy() end end
+
+			-- Display the visual novel dialogue in the log
+			local speakerColor = "#FFD700"
+			if data.Speaker == "Levi Ackerman" or data.Speaker == "Erwin Smith" then speakerColor = "#55AAFF" end
+
+			CombatUI.AppendLog("<font size='18' color='" .. speakerColor .. "'><b>[" .. (data.Speaker or "Unknown") .. "]</b></font>\n" .. (data.Text or "..."), "#FFFFFF")
+
+			-- Only give them one option: Continue the Story
+			local continueBtn, _ = CreateMinimalButton(ActionGrid, "CONTINUE STORY", UDim2.new(0, 0, 0, 0), "#55FF55")
+			continueBtn.MouseButton1Click:Connect(function()
+				-- Tell the server to move to the next wave (which could be a fight, minigame, or more dialogue)
+				Network:WaitForChild("CombatAction"):FireServer("MinigameResult", { Success = true, MinigameType = "Dialogue" }) 
+			end)
+
 		elseif action == "TurnStrike" then
 			CombatUI.UpdateState(data)
 
@@ -484,7 +509,6 @@ function CombatUI.Initialize(masterScreenGui)
 			retreatBtn.MouseButton1Click:Connect(function()
 				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Retreat"})
 				CombatUI.Close()
-				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
 				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
 				MusicManager.SetCategory("Lobby")
 			end)
@@ -494,7 +518,6 @@ function CombatUI.Initialize(masterScreenGui)
 			CombatUI.AppendLog("<b><font color='#55FF55'>VICTORY!</font></b>\nEarned " .. (data.XP or 0) .. " XP and " .. (data.Dews or 0) .. " Dews.", "#55FF55")
 			if data.ExtraLog and data.ExtraLog ~= "" then CombatUI.AppendLog(data.ExtraLog) end
 
-			-- [[ THE FIX: Play Victory Stinger (It will pause BGM automatically) ]]
 			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
 			VFXManager.PlaySFX("Victory", 1.0)
 
@@ -506,7 +529,6 @@ function CombatUI.Initialize(masterScreenGui)
 			local closeBtn, _ = CreateMinimalButton(ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#55FF55")
 			closeBtn.MouseButton1Click:Connect(function() 
 				CombatUI.Close() 
-				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
 				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
 				MusicManager.SetCategory("Lobby")
 			end)
@@ -515,7 +537,6 @@ function CombatUI.Initialize(masterScreenGui)
 			CombatUI.UpdateState(data)
 			CombatUI.AppendLog("<b><font color='#FF5555'>DEFEAT...</font></b> Your forces were wiped out.", "#FF5555")
 
-			-- [[ THE FIX: Play Defeat Stinger (It will pause BGM automatically) ]]
 			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
 			VFXManager.PlaySFX("Defeat", 1.0)
 
@@ -527,7 +548,6 @@ function CombatUI.Initialize(masterScreenGui)
 			local closeBtn, _ = CreateMinimalButton(ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#FF5555")
 			closeBtn.MouseButton1Click:Connect(function() 
 				CombatUI.Close() 
-				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
 				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
 				MusicManager.SetCategory("Lobby")
 			end)
@@ -536,7 +556,6 @@ function CombatUI.Initialize(masterScreenGui)
 			CombatUI.AppendLog("<b><font color='#AAAAAA'>YOU FLED THE BATTLE.</font></b>", "#AAAAAA")
 			task.wait(1.5)
 			CombatUI.Close()
-			-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
 			local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
 			MusicManager.SetCategory("Lobby")
 		end
@@ -638,7 +657,6 @@ function CombatUI.UpdateSkills()
 		end
 	end
 
-	-- 1. Standard Loadout Slots
 	for i = 1, 4 do
 		local skillName = player:GetAttribute("EquippedSkill_" .. i)
 		if isTransformed or not skillName or skillName == "" or skillName == "None" then
@@ -647,7 +665,6 @@ function CombatUI.UpdateSkills()
 		CreateSkillButton(skillName)
 	end
 
-	-- 2. Innate Clan Skills (Dynamically Injected!)
 	local myClan = player:GetAttribute("Clan")
 	if myClan and myClan ~= "None" and not isTransformed then
 		local clanSkills = {}
@@ -664,7 +681,6 @@ function CombatUI.UpdateSkills()
 		end
 	end
 
-	-- 3. Universal Movement/Support Actions
 	CreateSkillButton("Maneuver", "MANEUVER", "#55AAFF")
 
 	local rSkill = isTransformed and "Titan Recover" or "Recover"
