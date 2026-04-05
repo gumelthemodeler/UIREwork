@@ -6,8 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local MessagingService = game:GetService("MessagingService") 
+
 local BountyData = require(ReplicatedStorage:WaitForChild("BountyData"))
 local ItemData = require(ReplicatedStorage:WaitForChild("ItemData"))
+local GameData = require(ReplicatedStorage:WaitForChild("GameData"))
 
 local GameDataStore = DataStoreService:GetDataStore("AoT_Data_V6")
 local BackupDataStore = DataStoreService:GetDataStore("AoT_Backups_V3")
@@ -72,6 +74,7 @@ lbRf.OnServerInvoke = function(player, lbType)
 	return finalList
 end
 
+-- [[ THE FIX: Read base stats directly from GameData to ensure UI doesn't crash on nil stats! ]]
 local DefaultData = { 
 	Prestige = 0, CurrentPart = 1, CurrentMission = 1, CurrentWave = 1, XP = 0, TitanXP = 0, Dews = 0, Elo = 1000, 
 	Titan = "None", FightingStyle = "None", Clan = "None", Regiment = "Cadet Corps", DeployedDistrict = "Trost District",
@@ -79,8 +82,13 @@ local DefaultData = {
 	EquippedWeapon = "None", EquippedAccessory = "None", PathDust = 0, PathsFloor = 1, 
 	EquippedSkill_1 = "Basic Slash", EquippedSkill_2 = "Heavy Slash", EquippedSkill_3 = "Maneuver", EquippedSkill_4 = "Recover",
 	DispatchData = "{}", AllyLevels = "{}", UnlockedAllies = "", MaxDeployments = 2, 
-	Health = 10, Strength = 10, Defense = 10, Speed = 10, Gas = 10, Resolve = 10, LastFreeReroll = 0, RedeemedCodes = "",
-	LoginStreak = 0, LastLoginDate = "", AutoTrainSessionTime = 0 
+	Health = GameData.BaseStats.Health or 10, Strength = GameData.BaseStats.Strength or 10, 
+	Defense = GameData.BaseStats.Defense or 10, Speed = GameData.BaseStats.Speed or 10, 
+	Gas = GameData.BaseStats.Stamina or 10, Resolve = GameData.BaseStats.Willpower or 10,
+	MaxGas = GameData.BaseStats.Stamina or 10, MaxHealth = GameData.BaseStats.Health or 10,
+	Titan_Power_Val = 10, Titan_Speed_Val = 10, Titan_Hardening_Val = 10, 
+	Titan_Endurance_Val = 10, Titan_Precision_Val = 10, Titan_Potential_Val = 10,
+	LastFreeReroll = 0, RedeemedCodes = "", LoginStreak = 0, LastLoginDate = "", AutoTrainSessionTime = 0 
 }
 
 local CurrentVP = {
@@ -208,8 +216,7 @@ pcall(function()
 	end)
 end)
 
--- Forward Declaration of SavePlayer so we can force-save during wipes
-local SavePlayer
+local SavePlayer -- Forward declaration
 
 local AdminManager = require(ReplicatedStorage:WaitForChild("AdminManager"))
 
@@ -266,13 +273,12 @@ RemotesFolder.AdminCommand.OnServerEvent:Connect(function(player, command, targe
 		for k, v in pairs(DefaultData) do if k ~= "Prestige" and k ~= "Dews" and k ~= "Elo" then targetPlayer:SetAttribute(k, v) end end
 		for k, v in pairs(savedGamepasses) do targetPlayer:SetAttribute(k, v) end
 
-		-- [[ THE FIX: Re-enable the DataLoaded flag so SavePlayer doesn't ignore the wiped file! ]]
 		targetPlayer:SetAttribute("DataLoaded", true)
 
 		task.spawn(function() 
 			PrestigeLB:SetAsync(tostring(targetPlayer.UserId), 0)
 			EloLB:SetAsync(tostring(targetPlayer.UserId), 1000)
-			if SavePlayer then SavePlayer(targetPlayer, false) end -- Force a manual save instantly
+			if SavePlayer then SavePlayer(targetPlayer, false) end
 		end)
 
 		RemotesFolder.NotificationEvent:FireClient(player, "Player data successfully wiped.", "Success")
@@ -416,8 +422,6 @@ local function LoadPlayer(player)
 	end
 
 	RollBounties(player)
-
-	-- THIS IS THE CRITICAL FLAG NEEDED TO SAVE DATA!
 	player:SetAttribute("DataLoaded", true)
 
 	pcall(function() PrestigeLB:SetAsync(userIdStr, pVal.Value) end)
@@ -430,7 +434,6 @@ for _, p in ipairs(Players:GetPlayers()) do task.spawn(function() LoadPlayer(p) 
 local lastSaveTimes = {}
 local savingPlayers = {}
 
--- Implementing the forward-declared function
 SavePlayer = function(p, isLeaving)
 	if not p then return end
 	if not p:GetAttribute("DataLoaded") then return end
