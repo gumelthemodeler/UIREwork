@@ -21,6 +21,9 @@ end
 local CombatAction = GetRemote("CombatAction")
 local CombatUpdate = GetRemote("CombatUpdate")
 
+-- [[ THE FIX: Injecting the new VFX Remote ]]
+local PlayVFX = GetRemote("PlayVFX") 
+
 local ActiveBattles = {}
 
 local function UpdateBountyProgress(plr, taskType, amt)
@@ -330,6 +333,10 @@ local function ProcessEnemyDeath(player, battle)
 
 		battle.Context.StoredBoss = nil; battle.Context.TurnCount = 0 
 		CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#55FF55'>The Summoned Titan falls! The Founder is exposed!</font>", DidHit = false, ShakeType = "Heavy"})
+
+		-- [[ VFX: Titan death/roar when summoned titan falls ]]
+		PlayVFX:FireClient(player, "TitanRoar", "Enemy")
+
 		task.wait(turnDelay)
 		battle.IsProcessing = false
 		CombatUpdate:FireClient(player, "Update", {Battle = battle})
@@ -378,6 +385,8 @@ local function ProcessEnemyDeath(player, battle)
 		local healAmt = math.floor(pMax * battle.Player.AwakenedStats.HealOnKill)
 		battle.Player.HP = math.min(pMax, pCur + healAmt)
 		killMsg = killMsg .. "<br/><font color='#55FF55'>[Awakened: Healed " .. healAmt .. " HP!]</font>"
+		-- [[ VFX: Play Heal Effect ]]
+		PlayVFX:FireClient(player, "Heal", "Self")
 	end
 
 	if battle.Context.IsPaths then
@@ -613,7 +622,12 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 	battle.IsProcessing = true
 	local turnDelay = player:GetAttribute("HasDoubleSpeed") and 0.75 or 1.5
 
-	if skillName == "Maneuver" then UpdateBountyProgress(player, "Maneuver", 1) end
+	-- [[ VFX: Maneuver Hook ]]
+	if skillName == "Maneuver" or skillName == "Evasive Maneuver" or skillName == "Smoke Screen" or skillName == "Advance" or skillName == "Close In" then 
+		PlayVFX:FireClient(player, "Maneuver", "Self")
+		if skillName == "Maneuver" then UpdateBountyProgress(player, "Maneuver", 1) end
+	end
+
 	if skillName == "Transform" then UpdateBountyProgress(player, "Transform", 1) end
 
 	local function DispatchStrike(attacker, defender, strikeSkill, aimLimb)
@@ -621,11 +635,37 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 		local success, msg, didHit, shakeType = pcall(function() 
 			return CombatCore.ExecuteStrike(attacker, defender, strikeSkill, aimLimb, attacker.IsPlayer and "You" or attacker.Name, defender.IsPlayer and "you" or defender.Name, attacker.IsPlayer and "#FFFFFF" or "#FF5555", defender.IsPlayer and "#FFFFFF" or "#FF5555") 
 		end)
+
 		if success then 
 			if not didHit and string.find(defender.Name, "Dummy") then
 				msg = "<font color='#AAAAAA'>You missed the " .. defender.Name .. "!</font>"
 			end
 			CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = msg, DidHit = didHit, ShakeType = shakeType, SkillUsed = strikeSkill, IsPlayerAttacking = attacker.IsPlayer})
+
+			-- [[ VFX: Play Core Attack VFX if the strike landed ]]
+			if didHit then
+				if attacker.IsPlayer then
+					if shakeType == "Heavy" then
+						PlayVFX:FireClient(player, "PlayerCritical", "Enemy")
+					else
+						PlayVFX:FireClient(player, "PlayerSlash", "Enemy")
+					end
+				else
+					if string.find(strikeSkill:lower(), "bite") or string.find(strikeSkill:lower(), "chomp") then
+						PlayVFX:FireClient(player, "TitanBite", "Self")
+					else
+						if shakeType == "Heavy" then
+							PlayVFX:FireClient(player, "PlayerCritical", "Self") -- Re-using the heavy crunch sound
+						else
+							PlayVFX:FireClient(player, "PlayerSlash", "Self")
+						end
+					end
+				end
+			else
+				-- [[ VFX: Play Block sound if they dodged/blocked ]]
+				PlayVFX:FireClient(player, "Block", "Self")
+			end
+
 			task.wait(turnDelay) 
 		else 
 			CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#FF0000'>SERVER LOGIC ERROR: " .. tostring(msg) .. "</font>", DidHit = false, ShakeType = "None"}) 
@@ -790,6 +830,10 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 				if aiSkill ~= "Advance" and SkillData.Skills[aiSkill] and SkillData.Skills[aiSkill].Telegraphed then
 					combatant.Statuses["Telegraphing"] = aiSkill
 					CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<b><font color='#FFAA00'>WARNING: " .. combatant.Name .. " is charging up " .. aiSkill:upper() .. "! Brace yourself!</font></b>", DidHit = false, ShakeType = "Heavy"})
+
+					-- [[ VFX: Telegraphed Attack Roar ]]
+					PlayVFX:FireClient(player, "TitanRoar", "Enemy")
+
 					task.wait(turnDelay)
 					continue
 				end
@@ -844,6 +888,10 @@ CombatAction.OnServerEvent:Connect(function(player, actionType, actionData)
 				battle.Enemy.Cooldowns = {}
 
 				CombatUpdate:FireClient(player, "TurnStrike", {Battle = battle, LogMsg = "<font color='#FF5555'>The Founding Titan summoned a Pure Titan to protect itself!</font>", DidHit = false, ShakeType = "Heavy"})
+
+				-- [[ VFX: Summon Titan Roar ]]
+				PlayVFX:FireClient(player, "TitanRoar", "Enemy")
+
 				task.wait(turnDelay)
 			end
 		end
