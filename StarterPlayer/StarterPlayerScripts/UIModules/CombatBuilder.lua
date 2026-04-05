@@ -17,7 +17,8 @@ local function CreateFlatPanel(parent)
 	return frame, stroke
 end
 
-local function CreateFlatBar(parent, title, colorHex, pos, size, alignRight)
+local function CreateFlatBar(parent, title, colorHex, pos, size, alignRight, baseZ, isOverlay)
+	baseZ = baseZ or 1
 	local cColor = Color3.fromHex(colorHex:gsub("#", ""))
 	local shadowColor = Color3.new(cColor.R * 0.4, cColor.G * 0.4, cColor.B * 0.4)
 
@@ -26,16 +27,23 @@ local function CreateFlatBar(parent, title, colorHex, pos, size, alignRight)
 	container.Position = pos
 	container.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
 	container.BorderSizePixel = 0
+	container.ZIndex = baseZ
+
+	if isOverlay then
+		container.BackgroundTransparency = 1
+	end
 
 	local strk = Instance.new("UIStroke", container)
 	strk.Color = Color3.fromRGB(40, 40, 45)
 	strk.Thickness = 1
 	strk.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	if isOverlay then strk.Enabled = false end
 
 	local fill = Instance.new("Frame", container)
 	fill.Size = UDim2.new(1, 0, 1, 0)
 	fill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	fill.BorderSizePixel = 0
+	fill.ZIndex = baseZ + 1
 
 	if alignRight then
 		fill.AnchorPoint = Vector2.new(1, 0)
@@ -56,7 +64,7 @@ local function CreateFlatBar(parent, title, colorHex, pos, size, alignRight)
 		txt.TextXAlignment = Enum.TextXAlignment.Left
 		txt.Position = UDim2.new(0, 8, 0, 0)
 	end
-	txt.ZIndex = 2
+	txt.ZIndex = baseZ + 2
 
 	return fill, txt, container
 end
@@ -121,6 +129,7 @@ function CombatBuilder.Build(masterScreenGui, player)
 	GUI.pAvatar.Size = UDim2.new(0, 90, 0, 90)
 	GUI.pAvatar.Position = UDim2.new(0, 15, 0, 15)
 	GUI.pAvatar.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+	GUI.pAvatar.ZIndex = 2
 	local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
 	GUI.pAvatar.Image = isReady and content or ""
 	GUI.pAvatar.ScaleType = Enum.ScaleType.Crop
@@ -128,13 +137,42 @@ function CombatBuilder.Build(masterScreenGui, player)
 	pAvatarStroke.Color = Color3.fromRGB(85, 170, 255)
 	pAvatarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+	-- [[ NEW: Fully Fleshed Out Replicated Ally Panel! ]]
+	GUI.AllyPanel, _ = CreateFlatPanel(GUI.CombatWindow)
+	GUI.AllyPanel.Size = UDim2.new(0.4, 0, 0, 70)
+	GUI.AllyPanel.Position = UDim2.new(0.5, 0, 1.5, 0) 
+	GUI.AllyPanel.AnchorPoint = Vector2.new(0.5, 0)
+	GUI.AllyPanel.ZIndex = 50
+
+	GUI.AllyAvatar = Instance.new("ImageLabel", GUI.AllyPanel)
+	GUI.AllyAvatar.Size = UDim2.new(0, 50, 0, 50)
+	GUI.AllyAvatar.Position = UDim2.new(0, 10, 0.5, 0)
+	GUI.AllyAvatar.AnchorPoint = Vector2.new(0, 0.5)
+	GUI.AllyAvatar.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+	GUI.AllyAvatar.ScaleType = Enum.ScaleType.Crop
+	GUI.AllyAvatar.ZIndex = 51
+	local allyStroke = Instance.new("UIStroke", GUI.AllyAvatar)
+	allyStroke.Color = Color3.fromRGB(85, 255, 255)
+	allyStroke.Thickness = 1
+	allyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+	GUI.AllyNameLbl = UIHelpers.CreateLabel(GUI.AllyPanel, "ALLY NAME", UDim2.new(1, -80, 0, 20), Enum.Font.GothamBold, Color3.fromRGB(85, 255, 255), 14)
+	GUI.AllyNameLbl.Position = UDim2.new(0, 75, 0, 15)
+	GUI.AllyNameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	GUI.AllyNameLbl.ZIndex = 51
+
+	GUI.AllyStatusLbl = UIHelpers.CreateLabel(GUI.AllyPanel, "INTERVENING!", UDim2.new(1, -80, 0, 20), Enum.Font.GothamMedium, Color3.fromRGB(200, 200, 200), 12)
+	GUI.AllyStatusLbl.Position = UDim2.new(0, 75, 0, 35)
+	GUI.AllyStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+	GUI.AllyStatusLbl.ZIndex = 51
+
 	GUI.pNameLbl = UIHelpers.CreateLabel(PlayerPanel, player.Name, UDim2.new(1, -130, 0, 20), Enum.Font.GothamBold, UIHelpers.Colors.TextWhite, 15)
 	GUI.pNameLbl.Position = UDim2.new(0, 120, 0, 10)
 	GUI.pNameLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-	GUI.pHPBar, GUI.pHPText = CreateFlatBar(PlayerPanel, "HP", "#44DD44", UDim2.new(0, 120, 0, 35), UDim2.new(1, -135, 0, 20), false)
-	GUI.pGasBar, GUI.pGasText = CreateFlatBar(PlayerPanel, "GAS", "#AADDDD", UDim2.new(0, 120, 0, 60), UDim2.new(1, -135, 0, 20), false)
-	GUI.pHeatBar, GUI.pHeatText, GUI.pHeatContainer = CreateFlatBar(PlayerPanel, "HEAT", "#FF8800", UDim2.new(0, 120, 0, 85), UDim2.new(1, -135, 0, 20), false)
+	GUI.pHPBar, GUI.pHPText = CreateFlatBar(PlayerPanel, "HP", "#44DD44", UDim2.new(0, 120, 0, 35), UDim2.new(1, -135, 0, 20), false, 1)
+	GUI.pGasBar, GUI.pGasText = CreateFlatBar(PlayerPanel, "GAS", "#AADDDD", UDim2.new(0, 120, 0, 60), UDim2.new(1, -135, 0, 20), false, 1)
+	GUI.pHeatBar, GUI.pHeatText, GUI.pHeatContainer = CreateFlatBar(PlayerPanel, "HEAT", "#FF8800", UDim2.new(0, 120, 0, 85), UDim2.new(1, -135, 0, 20), false, 1)
 	GUI.pHeatContainer.Visible = false
 
 	GUI.PlayerStatusBox = Instance.new("Frame", PlayerPanel)
@@ -167,8 +205,8 @@ function CombatBuilder.Build(masterScreenGui, player)
 	GUI.eNameLbl.Position = UDim2.new(0, 15, 0, 10)
 	GUI.eNameLbl.TextXAlignment = Enum.TextXAlignment.Right
 
-	GUI.eHPBar, GUI.eHPText = CreateFlatBar(EnemyPanel, "HP", "#DD4444", UDim2.new(0, 15, 0, 35), UDim2.new(1, -135, 0, 20), true)
-	GUI.eGateBar, GUI.eGateText, GUI.eGateContainer = CreateFlatBar(EnemyPanel, "ARMOR", "#AAAAAA", UDim2.new(0, 15, 0, 60), UDim2.new(1, -135, 0, 20), true)
+	GUI.eHPBar, GUI.eHPText, GUI.eHPContainer = CreateFlatBar(EnemyPanel, "HP", "#DD4444", UDim2.new(0, 15, 0, 35), UDim2.new(1, -135, 0, 20), true, 1)
+	GUI.eGateBar, GUI.eGateText, GUI.eGateContainer = CreateFlatBar(EnemyPanel, "ARMOR", "#AAAAAA", UDim2.new(0, 15, 0, 35), UDim2.new(1, -135, 0, 20), true, 10, true)
 	GUI.eGateContainer.Visible = false
 
 	GUI.EnemyStatusBox = Instance.new("Frame", EnemyPanel)
