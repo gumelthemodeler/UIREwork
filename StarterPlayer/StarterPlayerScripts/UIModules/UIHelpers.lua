@@ -1,6 +1,6 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: UIHelpers
+-- @ScriptType: ModuleScript
 local UIHelpers = {}
 local TweenService = game:GetService("TweenService")
 
