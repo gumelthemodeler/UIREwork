@@ -1,5 +1,6 @@
 -- @ScriptType: ModuleScript
 -- Name: CombatUI
+-- @ScriptType: ModuleScript
 local CombatUI = {}
 
 local Players = game:GetService("Players")
@@ -53,24 +54,6 @@ local InstantSkills = {
 	["Titan Recover"] = true
 }
 
--- Centralized VFX & SFX Mapping
-local VfxIcons = {
-	["Basic Slash"] = "rbxassetid://14995963583", 
-	["Heavy Slash"] = "rbxassetid://14995963583",
-	["Titan Bite"] = "rbxassetid://15263158021",
-	["Titan Grab"] = "rbxassetid://15263158021",
-	["Brutal Swipe"] = "rbxassetid://15263158021",
-	["Impact"] = "rbxassetid://115407261158495",
-	["Block"] = "rbxassetid://111674249930782",
-	["ExplosionMark"] = "rbxassetid://115407261158495",
-	["SlashMark"] = "rbxassetid://14995963583",
-	["ClawMark"] = "rbxassetid://15263158021",
-	["Default"] = "rbxassetid://100709766417970"
-}
-
--- ==========================================
--- MODERN GRIM STYLING FUNCTIONS (FLAT & SHARP)
--- ==========================================
 local function CreateFlatPanel(parent)
 	local frame = Instance.new("Frame", parent)
 	frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
@@ -207,55 +190,6 @@ local function RenderStatuses(container, combatant)
 			end
 		end
 	end
-end
-
-local function TriggerVFX(shakeType, skillUsed, isPlayerAttacking)
-	if shakeType == "None" or not shakeType then return end
-
-	local intensity = (shakeType == "Heavy") and 12 or 4
-	local duration = (shakeType == "Heavy") and 0.25 or 0.15
-	local originalPos = UDim2.new(0.5, 0, 0.5, 0)
-
-	local shakeConn
-	local startTime = os.clock()
-	shakeConn = RunService.RenderStepped:Connect(function()
-		local elapsed = os.clock() - startTime
-		if elapsed >= duration then
-			shakeConn:Disconnect()
-			CombatWindow.Position = originalPos
-		else
-			local dampen = 1 - (elapsed / duration)
-			local offsetX = math.random(-intensity, intensity) * dampen
-			local offsetY = math.random(-intensity, intensity) * dampen
-			CombatWindow.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
-		end
-	end)
-
-	local sData = SkillData.Skills[skillUsed]
-	local vfxType = sData and sData.VFX or "Default"
-	local iconId = VfxIcons[vfxType] or VfxIcons["Default"]
-
-	local flash = Instance.new("ImageLabel", VFXOverlay)
-	flash.Size = UDim2.new(0, 120, 0, 120)
-	flash.BackgroundTransparency = 1
-	flash.Image = iconId
-	flash.ImageColor3 = isPlayerAttacking and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 100, 100)
-	flash.ZIndex = 110
-
-	if isPlayerAttacking then
-		flash.Position = UDim2.new(0.8, 0, 0.2, 0) 
-		flash.Rotation = math.random(-20, 20)
-	else
-		flash.Position = UDim2.new(0.2, 0, 0.2, 0) 
-		flash.Rotation = math.random(-20, 20)
-	end
-	flash.AnchorPoint = Vector2.new(0.5, 0.5)
-
-	local t1 = TweenService:Create(flash, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 200, 0, 200)})
-	local t2 = TweenService:Create(flash, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.1), {ImageTransparency = 1})
-	t1:Play(); t2:Play()
-
-	task.delay(0.4, function() flash:Destroy() end)
 end
 
 function CombatUI.Initialize(masterScreenGui)
@@ -522,7 +456,13 @@ function CombatUI.Initialize(masterScreenGui)
 
 		elseif action == "TurnStrike" then
 			CombatUI.UpdateState(data)
-			TriggerVFX(data.ShakeType, data.SkillUsed, data.IsPlayerAttacking)
+
+			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
+			VFXManager.PlayCombatEffect(data.SkillUsed, data.IsPlayerAttacking, pAvatar, eAvatar, data.DidHit)
+
+			if data.ShakeType == "Heavy" then VFXManager.ScreenShake(0.5, 0.25)
+			elseif data.ShakeType == "Light" then VFXManager.ScreenShake(0.2, 0.15) end
+
 			if data.LogMsg then CombatUI.AppendLog(data.LogMsg, data.IsPlayerAttacking and "#55AAFF" or "#FF5555") end
 
 		elseif action == "WaveComplete" then
@@ -544,6 +484,9 @@ function CombatUI.Initialize(masterScreenGui)
 			retreatBtn.MouseButton1Click:Connect(function()
 				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Retreat"})
 				CombatUI.Close()
+				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
+				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
+				MusicManager.SetCategory("Lobby")
 			end)
 
 		elseif action == "Victory" then
@@ -551,17 +494,30 @@ function CombatUI.Initialize(masterScreenGui)
 			CombatUI.AppendLog("<b><font color='#55FF55'>VICTORY!</font></b>\nEarned " .. (data.XP or 0) .. " XP and " .. (data.Dews or 0) .. " Dews.", "#55FF55")
 			if data.ExtraLog and data.ExtraLog ~= "" then CombatUI.AppendLog(data.ExtraLog) end
 
+			-- [[ THE FIX: Play Victory Stinger (It will pause BGM automatically) ]]
+			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
+			VFXManager.PlaySFX("Victory", 1.0)
+
 			inputLocked = true
 			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") or c:IsA("TextLabel") then c:Destroy() end end
 			TargetMenu.Visible = false
 			ActionGrid.Visible = true
 
 			local closeBtn, _ = CreateMinimalButton(ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#55FF55")
-			closeBtn.MouseButton1Click:Connect(function() CombatUI.Close() end)
+			closeBtn.MouseButton1Click:Connect(function() 
+				CombatUI.Close() 
+				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
+				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
+				MusicManager.SetCategory("Lobby")
+			end)
 
 		elseif action == "Defeat" or action == "PathsDeath" then
 			CombatUI.UpdateState(data)
 			CombatUI.AppendLog("<b><font color='#FF5555'>DEFEAT...</font></b> Your forces were wiped out.", "#FF5555")
+
+			-- [[ THE FIX: Play Defeat Stinger (It will pause BGM automatically) ]]
+			local VFXManager = require(script.Parent.Parent:WaitForChild("VFXManager"))
+			VFXManager.PlaySFX("Defeat", 1.0)
 
 			inputLocked = true
 			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") or c:IsA("TextLabel") then c:Destroy() end end
@@ -569,12 +525,20 @@ function CombatUI.Initialize(masterScreenGui)
 			ActionGrid.Visible = true
 
 			local closeBtn, _ = CreateMinimalButton(ActionGrid, "RETURN TO COMMAND", UDim2.new(0, 0, 0, 0), "#FF5555")
-			closeBtn.MouseButton1Click:Connect(function() CombatUI.Close() end)
+			closeBtn.MouseButton1Click:Connect(function() 
+				CombatUI.Close() 
+				-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
+				local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
+				MusicManager.SetCategory("Lobby")
+			end)
 
 		elseif action == "Fled" then
 			CombatUI.AppendLog("<b><font color='#AAAAAA'>YOU FLED THE BATTLE.</font></b>", "#AAAAAA")
 			task.wait(1.5)
 			CombatUI.Close()
+			-- [[ THE FIX: Switch back to Lobby music seamlessly when closing ]]
+			local MusicManager = require(script.Parent.Parent:WaitForChild("MusicManager"))
+			MusicManager.SetCategory("Lobby")
 		end
 	end)
 end
@@ -608,60 +572,85 @@ function CombatUI.UpdateSkills()
 
 	local fallbacks = (currentRange == "Close") and defaultClose or defaultLong
 
+	local function CreateSkillButton(skillName, customLabel, baseColor)
+		if skillName == "None" then return end
+
+		local sData = SkillData.Skills[skillName]
+		local cd = (pState and pState.Cooldowns and pState.Cooldowns[skillName]) or 0
+		local hasGas = true
+		local hasHeat = true
+		local isWrongRange = false
+
+		if sData then
+			if sData.GasCost and (pState.Gas or 0) < sData.GasCost then hasGas = false end
+			if sData.EnergyCost and (pState.TitanEnergy or 0) < sData.EnergyCost then hasHeat = false end
+			if sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange then
+				isWrongRange = true
+			end
+		end
+
+		local btnText = customLabel or string.upper(skillName)
+		local btnColor = baseColor or "#DDDDDD"
+		local isActive = true
+		local errorReason = ""
+
+		if cd > 0 then
+			isActive = false
+			errorReason = " [CD: " .. cd .. "]"
+		elseif not hasGas then
+			isActive = false
+			errorReason = " [NO GAS]"
+		elseif not hasHeat then
+			isActive = false
+			errorReason = " [NO HEAT]"
+		elseif isWrongRange then
+			btnColor = "#FFAA55"
+			errorReason = " [OUT OF RANGE]"
+		end
+
+		btnText = btnText .. errorReason
+
+		if not isActive then
+			btnColor = "#555555"
+		end
+
+		local btn, stroke = CreateMinimalButton(ActionGrid, btnText, UDim2.new(0, 0, 0, 0), btnColor)
+
+		if not isActive then
+			btn.Active = false
+			btn.TextColor3 = Color3.fromRGB(100, 100, 100)
+			stroke.Color = Color3.fromRGB(50, 50, 50)
+		else
+			if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
+			btn.MouseButton1Click:Connect(function()
+				if inputLocked then return end
+				if InstantSkills[skillName] then
+					inputLocked = true
+					for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+					UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
+					Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = skillName})
+				else
+					pendingSkillName = skillName
+					ActionGrid.Visible = false
+					TargetMenu.Visible = true
+				end
+			end)
+		end
+	end
+
 	-- 1. Standard Loadout Slots
 	for i = 1, 4 do
 		local skillName = player:GetAttribute("EquippedSkill_" .. i)
 		if isTransformed or not skillName or skillName == "" or skillName == "None" then
 			skillName = fallbacks[i]
 		end
-
-		if skillName ~= "None" then
-			local cd = (pState and pState.Cooldowns and pState.Cooldowns[skillName]) or 0
-
-			local sData = SkillData.Skills[skillName]
-			local isWrongRange = sData and sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange
-
-			local btnText = string.upper(skillName)
-			local btnColor = "#DDDDDD"
-
-			if cd > 0 then
-				btnText = btnText .. " [" .. cd .. "]"
-				btnColor = "#555555"
-			elseif isWrongRange then
-				btnText = btnText .. " [OUT OF RANGE]"
-				btnColor = "#FFAA55"
-			end
-
-			local btn, stroke = CreateMinimalButton(ActionGrid, btnText, UDim2.new(0, 0, 0, 0), btnColor)
-
-			if cd > 0 then
-				btn.Active = false
-				btn.TextColor3 = Color3.fromRGB(100, 100, 100)
-				stroke.Color = Color3.fromRGB(50, 50, 50)
-			else
-				if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
-				btn.MouseButton1Click:Connect(function()
-					if inputLocked then return end
-					if InstantSkills[skillName] then
-						inputLocked = true
-						for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-						UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-						Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = skillName})
-					else
-						pendingSkillName = skillName
-						ActionGrid.Visible = false
-						TargetMenu.Visible = true
-					end
-				end)
-			end
-		end
+		CreateSkillButton(skillName)
 	end
 
 	-- 2. Innate Clan Skills (Dynamically Injected!)
 	local myClan = player:GetAttribute("Clan")
 	if myClan and myClan ~= "None" and not isTransformed then
 		local clanSkills = {}
-
 		for sName, sData in pairs(SkillData.Skills) do
 			if sData.Type == "Style" and sData.Requirement and sData.Requirement ~= "ODM" and sData.Requirement ~= "Ultrahard Steel Blades" and sData.Requirement ~= "Thunder Spears" and sData.Requirement ~= "Anti-Personnel" then
 				if string.find(myClan, sData.Requirement) then
@@ -669,134 +658,34 @@ function CombatUI.UpdateSkills()
 				end
 			end
 		end
-
 		table.sort(clanSkills, function(a, b) return (a.Data.Order or 99) < (b.Data.Order or 99) end)
-
 		for _, cSkill in ipairs(clanSkills) do
-			local skillName = cSkill.Name
-			local sData = cSkill.Data
-			local cd = (pState and pState.Cooldowns and pState.Cooldowns[skillName]) or 0
-			local isWrongRange = sData.Range and sData.Range ~= "Any" and sData.Range ~= currentRange
-
-			-- Visual tag to let players know it's their Innate Clan Ability
-			local btnText = "[" .. string.upper(myClan) .. "] " .. string.upper(skillName)
-			local btnColor = "#CC44FF"
-
-			if cd > 0 then
-				btnText = btnText .. " [" .. cd .. "]"
-				btnColor = "#555555"
-			elseif isWrongRange then
-				btnText = btnText .. " [OUT OF RANGE]"
-				btnColor = "#FFAA55"
-			end
-
-			local btn, stroke = CreateMinimalButton(ActionGrid, btnText, UDim2.new(0, 0, 0, 0), btnColor)
-
-			if cd > 0 then
-				btn.Active = false
-				btn.TextColor3 = Color3.fromRGB(100, 100, 100)
-				stroke.Color = Color3.fromRGB(50, 50, 50)
-			else
-				if isWrongRange then btn.TextColor3 = Color3.fromRGB(255, 170, 85) end
-				btn.MouseButton1Click:Connect(function()
-					if inputLocked then return end
-					if InstantSkills[skillName] then
-						inputLocked = true
-						for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-						UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-						Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = skillName})
-					else
-						pendingSkillName = skillName
-						ActionGrid.Visible = false
-						TargetMenu.Visible = true
-					end
-				end)
-			end
+			CreateSkillButton(cSkill.Name, "[" .. string.upper(myClan) .. "] " .. string.upper(cSkill.Name), "#CC44FF")
 		end
 	end
 
 	-- 3. Universal Movement/Support Actions
-	local mBtn, _ = CreateMinimalButton(ActionGrid, "MANEUVER", UDim2.new(0, 0, 0, 0), "#55AAFF")
-	mBtn.MouseButton1Click:Connect(function() 
-		if not inputLocked then 
-			inputLocked = true
-			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-			UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-			Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Maneuver"}) 
-		end 
-	end)
+	CreateSkillButton("Maneuver", "MANEUVER", "#55AAFF")
 
 	local rSkill = isTransformed and "Titan Recover" or "Recover"
-	local rBtn, _ = CreateMinimalButton(ActionGrid, string.upper(rSkill), UDim2.new(0, 0, 0, 0), "#55FF55")
-	rBtn.MouseButton1Click:Connect(function() 
-		if not inputLocked then 
-			inputLocked = true
-			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-			UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-			Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = rSkill}) 
-		end 
-	end)
+	CreateSkillButton(rSkill, string.upper(rSkill), "#55FF55")
 
 	if currentRange == "Close" then
-		local rangeBtn, _ = CreateMinimalButton(ActionGrid, "FALL BACK", UDim2.new(0, 0, 0, 0), "#FFAA55")
-		rangeBtn.MouseButton1Click:Connect(function() 
-			if not inputLocked then 
-				inputLocked = true
-				for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-				UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Fall Back"}) 
-			end 
-		end)
+		CreateSkillButton("Fall Back", "FALL BACK", "#FFAA55")
 	else
-		local rangeBtn, _ = CreateMinimalButton(ActionGrid, "CLOSE IN", UDim2.new(0, 0, 0, 0), "#FFAA55")
-		rangeBtn.MouseButton1Click:Connect(function() 
-			if not inputLocked then 
-				inputLocked = true
-				for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-				UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Close In"}) 
-			end 
-		end)
+		CreateSkillButton("Close In", "CLOSE IN", "#FFAA55")
 	end
 
 	local hasTitan = player:GetAttribute("Titan") and player:GetAttribute("Titan") ~= "None"
 	pHeatContainer.Visible = hasTitan 
 
 	if hasTitan and not isTransformed then
-		local heat = pState and pState.TitanEnergy or 0
-		local maxHeat = pState and pState.MaxTitanEnergy or 100
-		if heat >= maxHeat then
-			local tBtn, _ = CreateMinimalButton(ActionGrid, "TRANSFORM", UDim2.new(0, 0, 0, 0), "#FFD700")
-			tBtn.MouseButton1Click:Connect(function() 
-				if not inputLocked then 
-					inputLocked = true
-					for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-					UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-					Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Transform"}) 
-				end 
-			end)
-		end
+		CreateSkillButton("Transform", "TRANSFORM", "#FFD700")
 	elseif isTransformed then
-		local ejBtn, _ = CreateMinimalButton(ActionGrid, "EJECT", UDim2.new(0, 0, 0, 0), "#FFD700")
-		ejBtn.MouseButton1Click:Connect(function() 
-			if not inputLocked then 
-				inputLocked = true
-				for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-				UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-				Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Eject"}) 
-			end 
-		end)
+		CreateSkillButton("Eject", "EJECT", "#FFD700")
 	end
 
-	local fBtn, _ = CreateMinimalButton(ActionGrid, "FLEE", UDim2.new(0, 0, 0, 0), "#FF5555")
-	fBtn.MouseButton1Click:Connect(function() 
-		if not inputLocked then 
-			inputLocked = true
-			for _, c in ipairs(ActionGrid:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-			UIHelpers.CreateLabel(ActionGrid, "EXECUTING MANEUVER...", UDim2.new(0, 200, 0, 45), Enum.Font.GothamBold, UIHelpers.Colors.TextMuted, 14)
-			Network:WaitForChild("CombatAction"):FireServer("Attack", {SkillName = "Retreat"}) 
-		end 
-	end)
+	CreateSkillButton("Retreat", "FLEE", "#FF5555")
 end
 
 function CombatUI.UpdateState(data)
