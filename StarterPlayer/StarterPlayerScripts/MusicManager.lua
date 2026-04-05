@@ -1,5 +1,4 @@
 -- @ScriptType: ModuleScript
--- @ScriptType: ModuleScript
 -- Name: MusicManager
 -- @ScriptType: ModuleScript
 local MusicManager = {}
@@ -22,13 +21,18 @@ local TRACKS = {
 		136613944396198,
 		136341071155543
 	},
-	["Raid"] = { -- Used for World Bosses and Raids
+	["Raid"] = { 
 		139939916955744,
 		136977425799420
 	},
-	["Nightmare"] = { -- Used for Nightmare Hunts / Abyssal Bosses
+	["Nightmare"] = { 
 		139637448871564,
 		138932123500602
+	},
+	-- [[ NEW: Dynamic Enrage Phase Music! ]]
+	["BossEnrage"] = {
+		139637448871564, -- Intense, fast-paced choir/orchestral IDs
+		138932123500602 
 	}
 }
 
@@ -66,14 +70,10 @@ local function PlayNextTrack()
 	nextPlayer.SoundId = "rbxassetid://" .. tostring(nextTrackId)
 
 	task.spawn(function()
-		pcall(function()
-			ContentProvider:PreloadAsync({nextPlayer})
-		end)
+		pcall(function() ContentProvider:PreloadAsync({nextPlayer}) end)
 
-		-- Ensure another play call hasn't already fired and replaced us while loading
 		if nextPlayer.SoundId == "rbxassetid://" .. tostring(nextTrackId) then
 			nextPlayer:Play()
-
 			TweenService:Create(nextPlayer, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Linear), {Volume = TARGET_VOLUME}):Play()
 
 			local prevPlayer = ActivePlayer
@@ -92,13 +92,8 @@ local function PlayNextTrack()
 	end)
 end
 
-Player1.Ended:Connect(function()
-	if ActivePlayer == Player1 then PlayNextTrack() end
-end)
-
-Player2.Ended:Connect(function()
-	if ActivePlayer == Player2 then PlayNextTrack() end
-end)
+Player1.Ended:Connect(function() if ActivePlayer == Player1 then PlayNextTrack() end end)
+Player2.Ended:Connect(function() if ActivePlayer == Player2 then PlayNextTrack() end end)
 
 function MusicManager.SetCategory(newCategory)
 	if CurrentCategory == newCategory then return end
@@ -115,16 +110,24 @@ function MusicManager.Initialize()
 	local CombatUpdate = Network:WaitForChild("CombatUpdate")
 
 	CombatUpdate.OnClientEvent:Connect(function(action, data)
-		-- [[ THE FIX: Intercept "Dialogue" nodes so they correctly trigger battle music, not just "Start" events! ]]
-		if action == "Start" or action == "StartMinigame" or action == "Dialogue" then
-			local ctx = data.Battle and data.Battle.Context
-			if ctx then
-				if ctx.IsWorldBoss or ctx.IsRaid then MusicManager.SetCategory("Raid")
-				elseif ctx.IsNightmare then MusicManager.SetCategory("Nightmare")
-				else MusicManager.SetCategory("Battle") end
-			else
-				MusicManager.SetCategory("Battle")
-			end
+		if not data or not data.Battle then return end
+		local ctx = data.Battle.Context
+		local enemy = data.Battle.Enemy
+
+		-- [[ THE FIX: Adaptive Music shifting based on Boss HP! ]]
+		local hpRatio = (enemy.HP or 1) / (enemy.MaxHP or 1)
+		local isEnraged = enemy.IsBoss and hpRatio <= 0.30
+
+		if action == "Start" or action == "StartMinigame" or action == "Update" or action == "TurnStrike" or action == "WaveComplete" then
+			if enemy.IsDialogue then return end
+
+			local targetCat = "Battle"
+			if ctx.IsWorldBoss or ctx.IsRaid then targetCat = "Raid"
+			elseif ctx.IsNightmare then targetCat = "Nightmare" end
+
+			if isEnraged then targetCat = "BossEnrage" end
+
+			MusicManager.SetCategory(targetCat)
 		end
 	end)
 end
