@@ -1,4 +1,5 @@
 -- @ScriptType: ModuleScript
+-- @ScriptType: ModuleScript
 -- Name: MusicManager
 -- @ScriptType: ModuleScript
 local MusicManager = {}
@@ -69,6 +70,7 @@ local function PlayNextTrack()
 			ContentProvider:PreloadAsync({nextPlayer})
 		end)
 
+		-- Ensure another play call hasn't already fired and replaced us while loading
 		if nextPlayer.SoundId == "rbxassetid://" .. tostring(nextTrackId) then
 			nextPlayer:Play()
 
@@ -81,7 +83,7 @@ local function PlayNextTrack()
 			task.delay(FADE_TIME, function()
 				if prevPlayer.Volume == 0 then 
 					prevPlayer:Stop()
-					prevPlayer.TimePosition = 0 -- Fully reset the track
+					prevPlayer.TimePosition = 0 
 				end
 			end)
 
@@ -113,8 +115,8 @@ function MusicManager.Initialize()
 	local CombatUpdate = Network:WaitForChild("CombatUpdate")
 
 	CombatUpdate.OnClientEvent:Connect(function(action, data)
-		-- [[ THE FIX: MusicManager ONLY listens for battle START. CombatUI explicitly manages the EXIT to prevent visual/audio clashing ]]
-		if action == "Start" or action == "StartMinigame" then
+		-- [[ THE FIX: Intercept "Dialogue" nodes so they correctly trigger battle music, not just "Start" events! ]]
+		if action == "Start" or action == "StartMinigame" or action == "Dialogue" then
 			local ctx = data.Battle and data.Battle.Context
 			if ctx then
 				if ctx.IsWorldBoss or ctx.IsRaid then MusicManager.SetCategory("Raid")
