@@ -1,4 +1,5 @@
 -- @ScriptType: ModuleScript
+-- @ScriptType: ModuleScript
 -- Name: MainUI
 local MainUI = {}
 
@@ -19,6 +20,9 @@ local CurrentOpenTab = nil
 local lblElo, lblPrestige, lblDews, lblXP, lblTitanXP
 local player = Players.LocalPlayer
 
+-- Admin Verification Check
+local isAdmin = player:GetAttribute("IsAdmin") or player.Name == "girthbender1209"
+
 local function BuildEnvironment(onComplete)
 	local BGFrame = Instance.new("Frame", MasterGui)
 	BGFrame.Name = "TexturedBackground"
@@ -37,7 +41,6 @@ local function BuildEnvironment(onComplete)
 	if onComplete then onComplete() end
 end
 
--- [[ THE FIX: Number Abbreviation Formatter ]]
 local function FormatAbbreviation(value)
 	local num = tonumber(value)
 	if not num then return "0" end
@@ -145,7 +148,6 @@ local function BuildMasterWindow()
 	lblPrestige = CreateTopBox("PRESTIGE", "#FFD700")
 	lblElo = CreateTopBox("ELO RATING", "#55AAFF")
 
-	-- [[ THE FIX: Applied FormatAbbreviation to all stat displays ]]
 	local function UpdateCurrencies()
 		local ls = player:FindFirstChild("leaderstats")
 		lblPrestige.Text = FormatAbbreviation((ls and ls:FindFirstChild("Prestige")) and ls.Prestige.Value or 0)
@@ -175,6 +177,10 @@ local function BuildMasterWindow()
 	ContentArea.BackgroundTransparency = 1
 
 	local tabs = {"HOME", "PROFILE", "EXPEDITIONS", "SQUADS", "SUPPLY_FORGE", "REGIMENTS"}
+
+	-- [[ ADMIN TAB INJECTION ]]
+	if isAdmin then table.insert(tabs, "ADMIN") end
+
 	for _, tabName in ipairs(tabs) do
 		local tabFrame = Instance.new("Frame", ContentArea)
 		tabFrame.Name = tabName
@@ -203,21 +209,19 @@ local function BuildMasterWindow()
 		hLeft.BackgroundTransparency = 1
 
 		local GameIcon = Instance.new("ImageLabel", hLeft)
-		GameIcon.Size = UDim2.new(0, 240, 0, 240) -- Fixed square size
-		GameIcon.Position = UDim2.new(0.5, 0, 0.22, 0) -- Centered horizontally, pushed slightly up
-		GameIcon.AnchorPoint = Vector2.new(0.5, 0.5) -- Anchor to the center of the image
+		GameIcon.Size = UDim2.new(0, 240, 0, 240)
+		GameIcon.Position = UDim2.new(0.5, 0, 0.22, 0)
+		GameIcon.AnchorPoint = Vector2.new(0.5, 0.5) 
 		GameIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 		GameIcon.Image = "rbxassetid://129999765135567" 
-		GameIcon.ScaleType = Enum.ScaleType.Fit -- Fit instead of Crop so the logo doesn't get cut off
+		GameIcon.ScaleType = Enum.ScaleType.Fit 
 
-		-- Ensures it stays a perfect square even if the window resizes
 		local giAspect = Instance.new("UIAspectRatioConstraint", GameIcon)
 		giAspect.AspectRatio = 1.0 
 
 		local giStroke = Instance.new("UIStroke", GameIcon)
 		giStroke.Color = UIHelpers.Colors.Gold
 		giStroke.Thickness = 2
-		-- Removed UICorner to keep it perfectly sharp
 
 		local ChangeLogBox = Instance.new("Frame", hLeft)
 		ChangeLogBox.Size = UDim2.new(1, 0, 0.5, 0)
@@ -226,7 +230,6 @@ local function BuildMasterWindow()
 		local clStroke = Instance.new("UIStroke", ChangeLogBox)
 		clStroke.Color = Color3.fromRGB(70, 70, 80)
 		clStroke.Thickness = 2
-		-- Removed UICorner to keep it perfectly sharp
 
 		local clTitle = UIHelpers.CreateLabel(ChangeLogBox, "CHANGELOG & CODES", UDim2.new(1, -20, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.Gold, 16)
 		clTitle.Position = UDim2.new(0, 10, 0, 10)
@@ -245,7 +248,6 @@ local function BuildMasterWindow()
 		local hrStroke = Instance.new("UIStroke", hRight)
 		hrStroke.Color = Color3.fromRGB(70, 70, 80)
 		hrStroke.Thickness = 2
-		-- Removed UICorner to keep it perfectly sharp
 
 		local lbHeader = UIHelpers.CreateLabel(hRight, "GLOBAL APEX LEADERBOARDS", UDim2.new(1, -20, 0, 30), Enum.Font.GothamBlack, UIHelpers.Colors.TextWhite, 20)
 		lbHeader.Position = UDim2.new(0, 15, 0, 15)
@@ -415,6 +417,14 @@ local function BuildMasterWindow()
 		local RegMod = require(script.Parent:WaitForChild("RegimentsTab"))
 		if RegMod.Initialize then RegMod.Initialize(TabContainers["REGIMENTS"]) end
 	end)
+
+	-- [[ ADMIN TAB INJECTION ]]
+	if isAdmin then
+		task.spawn(function()
+			local AdminMod = require(script.Parent:WaitForChild("AdminTab"))
+			if AdminMod.Initialize then AdminMod.Initialize(TabContainers["ADMIN"]) end
+		end)
+	end
 end
 
 local function OpenMasterTab(tabName, displayTitle)
@@ -439,7 +449,6 @@ end
 
 local function BuildBottomBar()
 	local Dock = Instance.new("Frame", MasterGui)
-	Dock.Size = UDim2.new(0, 460, 0, 70) 
 	Dock.AnchorPoint = Vector2.new(0.5, 1)
 	Dock.Position = UDim2.new(0.5, 0, 1, -20)
 
@@ -463,6 +472,14 @@ local function BuildBottomBar()
 		{Id = "REGIMENTS", Title = "REGIMENT HEADQUARTERS", Icon = "rbxassetid://74069077964164"} 
 	}
 
+	-- Add Admin Button and expand Dock width dynamically
+	if isAdmin then
+		table.insert(dockButtons, {Id = "ADMIN", Title = "ADMIN DEBUG PANEL", Icon = "rbxassetid://100709766417970"})
+		Dock.Size = UDim2.new(0, 540, 0, 70) 
+	else
+		Dock.Size = UDim2.new(0, 460, 0, 70) 
+	end
+
 	for _, btnData in ipairs(dockButtons) do
 		local btn = UIHelpers.CreateIconButton(Dock, btnData.Icon, UDim2.new(0, 50, 0, 50))
 		btn.MouseButton1Click:Connect(function() OpenMasterTab(btnData.Id, btnData.Title) end)
@@ -471,7 +488,7 @@ local function BuildBottomBar()
 			local function UpdateRegimentIcon()
 				local currentReg = player:GetAttribute("Regiment") or "Cadet Corps"
 				local hasRegData, regDataModule = pcall(function() return require(game.ReplicatedStorage:WaitForChild("RegimentData")) end)
-				local newIcon = "rbxassetid://74069077964164" -- Default Placeholder
+				local newIcon = "rbxassetid://74069077964164" 
 
 				if hasRegData and regDataModule and regDataModule.Regiments[currentReg] then
 					newIcon = regDataModule.Regiments[currentReg].Icon
